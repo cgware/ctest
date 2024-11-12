@@ -35,12 +35,6 @@ add_library(ctest ${ctest_src})
 add_dependencies(ctest cbase)
 target_link_libraries(ctest PUBLIC ${CMAKE_SOURCE_DIR}/bin/cbase/cbase.a)
 target_include_directories(ctest PUBLIC include ${CMAKE_SOURCE_DIR}/deps/cbase/include)
-set_target_properties(ctest PROPERTIES
-	ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin/ctest/${ARCH}-Debug/
-	ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin/ctest/${ARCH}-Release/
-	PREFIX ""
-)
-
 if(NOT MSVC)
 	if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 		target_compile_options(ctest PRIVATE -Wall -Wextra -Werror -pedantic -coverage -O0 -ggdb)
@@ -49,6 +43,11 @@ if(NOT MSVC)
 		target_compile_options(ctest PRIVATE -Wall -Wextra -Werror -pedantic)
 	endif()
 endif()
+set_target_properties(ctest PROPERTIES
+	ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${CMAKE_SOURCE_DIR}/bin/ctest/${ARCH}-Debug/
+	ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin/ctest/${ARCH}-Release/
+	PREFIX ""
+)
 
 file(GLOB_RECURSE ctest_test_src test/*.h test/*.c)
 add_executable(ctest_test ${ctest_test_src})
