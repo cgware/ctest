@@ -20,20 +20,31 @@ if(NOT MSVC)
 	endif()
 endif()
 
+if(WIN32)
+    set(LIB_EXT ".lib")
+else()
+	set(LIB_EXT ".a")
+endif()
+
 include(ExternalProject)
-ExternalProject_Add(cbase
+ExternalProject_Add(cbase_project
   GIT_REPOSITORY    https://github.com/cgware/cbase.git
   GIT_TAG           main
   SOURCE_DIR        "${CMAKE_SOURCE_DIR}/deps/cbase"
-  BINARY_DIR        "${CMAKE_SOURCE_DIR}/bin/cbase"
   INSTALL_COMMAND   ""
   TEST_COMMAND      ""
+  CMAKE_ARGS        "-DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}"
+  CMAKE_ARGS        "-DARCH=${ARCH}"
 )
 
 file(GLOB_RECURSE ctest_src src/*.h src/*.c)
 add_library(ctest ${ctest_src})
-add_dependencies(ctest cbase)
-target_link_libraries(ctest PUBLIC ${CMAKE_SOURCE_DIR}/bin/cbase/cbase.a)
+add_dependencies(ctest cbase_project)
+add_library(cbase STATIC IMPORTED)
+set_target_properties(cbase PROPERTIES
+    IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/deps/cbase/bin/cbase/${ARCH}-${CMAKE_BUILD_TYPE}/cbase${LIB_EXT}
+)
+target_link_libraries(ctest PUBLIC cbase)
 target_include_directories(ctest PUBLIC include ${CMAKE_SOURCE_DIR}/deps/cbase/include)
 if(NOT MSVC)
 	if(CMAKE_BUILD_TYPE STREQUAL "Debug")
