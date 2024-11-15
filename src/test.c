@@ -15,6 +15,8 @@
 
 #define BYTE_TO_BIN_PATTERN "%c%c%c%c%c%c%c%c"
 
+#define TEST_PREFIX "test_"
+
 // clang-format off
 #define BYTE_TO_BIN(byte)  \
   (byte & 0x80 ? '1' : '0'), \
@@ -157,9 +159,9 @@ void t_init()
 int t_finish()
 {
 	if (s_data.failed == 0) {
-		t_printf("\033[0;32mPASSED %llu %s\033[0m\n", s_data.passed, s_data.passed == 1 ? "TEST" : "TESTS");
+		t_printf("\033[0;32mPASS %llu %s\033[0m\n", s_data.passed, s_data.passed == 1 ? "TEST" : "TESTS");
 	} else {
-		t_printf("\033[0;31mFAILED %llu/%llu %s\033[0m\n",
+		t_printf("\033[0;31mFAIL %llu/%llu %s\033[0m\n",
 			 s_data.failed,
 			 s_data.failed + s_data.passed,
 			 s_data.failed == 1 ? "TEST" : "TESTS");
@@ -216,12 +218,12 @@ int t_end(int passed, const char *func)
 	pvr();
 
 	if (s_data.mem != s_data.mem_stats.mem) {
-		t_printf("\033[0;31m%s LEAKED %d B\033[0m\n", func, s_data.mem_stats.mem - s_data.mem);
+		t_printf("\033[0;31mLEAK %s: %d B\033[0m\n", func + sizeof(TEST_PREFIX) - 1, s_data.mem_stats.mem - s_data.mem);
 		s_data.failed++;
 		return 1;
 	}
 
-	t_printf("\033[0;32m%s OK\033[0m\n", func);
+	t_printf("\033[0;32mPASS %s\033[0m\n", func + sizeof(TEST_PREFIX) - 1);
 
 	s_data.passed++;
 	return 0;
@@ -236,7 +238,7 @@ void t_sstart(const char *func)
 		pvr();
 	}
 
-	t_printf("%s\n", func);
+	t_printf("%s\n", func + sizeof(TEST_PREFIX) - 1);
 	s_data.depth++;
 }
 
@@ -247,9 +249,9 @@ int t_send(int passed, int failed)
 	}
 	pur();
 	if (failed == 0) {
-		t_printf("\033[0;32mPASSED %d %s\033[0m\n", passed, passed == 1 ? "TEST" : "TESTS");
+		t_printf("\033[0;32mPASS %d %s\033[0m\n", passed, passed == 1 ? "TEST" : "TESTS");
 	} else {
-		t_printf("\033[0;31mFAILED %d/%d %s\033[0m\n", failed, failed + passed, failed == 1 ? "TEST" : "TESTS");
+		t_printf("\033[0;31mFAIL %d/%d %s\033[0m\n", failed, failed + passed, failed == 1 ? "TEST" : "TESTS");
 	}
 	s_data.depth--;
 	return failed > 0;
@@ -316,7 +318,7 @@ static void print_header(int passed, const char *file, const char *func, int lin
 			len += pv();
 		}
 		len += pvr();
-		t_printf("\033[0;31m%s FAILED\033[0m\n", func);
+		t_printf("\033[0;31mFAIL %s\033[0m\n", func + sizeof(TEST_PREFIX) - 1);
 	}
 
 	for (int i = 0; i < s_data.depth; i++) {

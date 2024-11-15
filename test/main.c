@@ -271,12 +271,12 @@ TEST(subtest)
 	SEND;
 }
 
-TEST(empty_test)
+int empty_test()
 {
 	return 1;
 }
 
-TEST(t_t_run)
+TEST(t_run)
 {
 	START;
 
@@ -286,7 +286,7 @@ TEST(t_t_run)
 	END;
 }
 
-TEST(t_t_end)
+TEST(t_end)
 {
 	START;
 
@@ -306,7 +306,7 @@ TEST(t_t_end)
 	END;
 }
 
-TEST(t_t_set_priv)
+TEST(t_set_priv)
 {
 	START;
 
@@ -333,7 +333,7 @@ static int teardown(void *priv)
 	return 0;
 }
 
-TEST(t_t_setup_teardown)
+TEST(t_setup_teardown)
 {
 	START;
 
@@ -353,7 +353,7 @@ TEST(t_t_setup_teardown)
 	END;
 }
 
-TEST(t_t_expect)
+TEST(t_expect)
 {
 	START;
 
@@ -372,7 +372,7 @@ TEST(t_t_expect)
 	END;
 }
 
-TEST(t_t_set_print)
+TEST(t_set_print)
 {
 	START;
 
@@ -390,7 +390,7 @@ TEST(t_t_set_print)
 	END;
 }
 
-TEST(t_t_send)
+TEST(t_send)
 {
 	START;
 
@@ -407,7 +407,7 @@ TEST(t_t_send)
 	END;
 }
 
-TEST(t_t_finish)
+TEST(t_finish)
 {
 	START;
 
@@ -432,20 +432,20 @@ TEST(t_t_finish)
 	END;
 }
 
-int ctest_test()
+TEST(ctest)
 {
 	SSTART;
 
 	RUN(subtest);
 
-	RUN(t_t_run);
-	RUN(t_t_end);
-	RUN(t_t_set_priv);
-	RUN(t_t_setup_teardown);
-	RUN(t_t_expect);
-	RUN(t_t_set_print);
-	RUN(t_t_send);
-	RUN(t_t_finish);
+	RUN(t_run);
+	RUN(t_end);
+	RUN(t_set_priv);
+	RUN(t_setup_teardown);
+	RUN(t_expect);
+	RUN(t_set_print);
+	RUN(t_send);
+	RUN(t_finish);
 
 	SEND;
 }
@@ -453,6 +453,6 @@ int ctest_test()
 int main()
 {
 	t_init();
-	t_run(ctest_test, 1);
+	t_run(test_ctest, 1);
 	return t_finish();
 }

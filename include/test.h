@@ -57,12 +57,12 @@ void t_expect_fstr_start(const char *exp, size_t len);
 int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 
 // Declare subtest
-#define STEST(_name)	   int _name()
-#define STESTP(_name, ...) int _name(__VA_ARGS__)
+#define STEST(_name)	   int test_##_name()
+#define STESTP(_name, ...) int test_##_name(__VA_ARGS__)
 
 // Declare test
-#define TEST(_name)	  static inline int _name()
-#define TESTP(_name, ...) static inline int _name(__VA_ARGS__)
+#define TEST(_name)	  static inline int test_##_name()
+#define TESTP(_name, ...) static inline int test_##_name(__VA_ARGS__)
 
 // Test start
 #define START                                                                                                                              \
@@ -83,14 +83,14 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 
 // Run test
 #define RUN(_fn)                                                                                                                           \
-	if (_fn()) {                                                                                                                       \
+	if (test_##_fn()) {                                                                                                                       \
 		_sfailed++;                                                                                                                \
 	} else {                                                                                                                           \
 		_spassed++;                                                                                                                \
 	}
 
 #define RUNP(_fn, ...)                                                                                                                     \
-	if (_fn(__VA_ARGS__)) {                                                                                                            \
+	if (test_##_fn(__VA_ARGS__)) {                                                                                                            \
 		_sfailed++;                                                                                                                \
 	} else {                                                                                                                           \
 		_spassed++;                                                                                                                \
