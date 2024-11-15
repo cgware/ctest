@@ -452,6 +452,7 @@ TEST(ctest)
 
 int main()
 {
+	c_print_init();
 	t_init();
 	t_run(test_ctest, 1);
 	return t_finish();
