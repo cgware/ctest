@@ -480,7 +480,7 @@ static void print_str(int passed, const char *file, const char *func, int line, 
 		}
 	}
 
-	if (diff == 0 && exp_len == act_len) {
+	if (diff == 0 && exp_len == act_len && (!exp_str == !act_str)) {
 		return;
 	}
 
