@@ -54,11 +54,11 @@ TEST(success_test)
 	EXPECT_STR(NULL, NULL);
 	EXPECT_STR("a", "a");
 	EXPECT_STRN(NULL, NULL, 1);
-	EXPECT_STRN("ab", "ac", 1);
+	EXPECT_STRN("abc", "ab", 2);
 	EXPECT_WSTR(NULL, NULL);
 	EXPECT_WSTR(L"a", L"a");
 	EXPECT_WSTRN(NULL, NULL, 1);
-	EXPECT_WSTRN(L"ab", L"ac", 1);
+	EXPECT_WSTRN(L"abc", L"ab", 2);
 	EXPECT(!strcmp("a", "a"));
 	char exp[] = "\tTest\n\tTest";
 	EXPECT_FSTR(t_fprintf(NULL, "\tTest\n\tTest"), exp, sizeof(exp) - 1);

@@ -282,7 +282,7 @@ int t_strncmp(const char *act, const char *exp, size_t len)
 	if (act == NULL && exp == NULL) {
 		return 0;
 	}
-	if (act == NULL || exp == NULL) {
+	if (act == NULL || exp == NULL || strlen(exp) != len) {
 		return 1;
 	}
 	return strncmp(act, exp, len);
@@ -304,7 +304,7 @@ int t_wstrncmp(const wchar_t *act, const wchar_t *exp, size_t len)
 	if (act == NULL && exp == NULL) {
 		return 0;
 	}
-	if (act == NULL || exp == NULL) {
+	if (act == NULL || exp == NULL || wcslen(exp) != len) {
 		return 1;
 	}
 	return wcsncmp(act, exp, len);
@@ -480,10 +480,6 @@ static void print_str(int passed, const char *file, const char *func, int line, 
 		}
 	}
 
-	if (diff == 0 && exp_len == act_len && (!exp_str == !act_str)) {
-		return;
-	}
-
 	if (exp_line_end == 0) {
 		exp_line_end = exp_len;
 	}
@@ -571,10 +567,6 @@ static void print_wstr(int passed, const char *file, const char *func, int line,
 		}
 	}
 
-	if (diff == 0 && exp_len == act_len) {
-		return;
-	}
-
 	if (exp_line_end == 0) {
 		exp_line_end = exp_len;
 	}
@@ -645,14 +637,7 @@ void t_expect_str(int passed, const char *file, const char *func, int line, cons
 
 void t_expect_strn(int passed, const char *file, const char *func, int line, const char *act, const char *exp, size_t len)
 {
-	print_str(passed,
-		  file,
-		  func,
-		  line,
-		  act,
-		  exp,
-		  (int)MIN(len, act == NULL ? 0 : strlen(act)),
-		  (int)MIN(len, exp == NULL ? 0 : strlen(exp)));
+	print_str(passed, file, func, line, act, exp, (int)MIN(len, act == NULL ? 0 : strlen(act)), exp == NULL ? 0 : (int)strlen(exp));
 }
 
 void t_expect_wstr(int passed, const char *file, const char *func, int line, const wchar_t *act, const wchar_t *exp)
@@ -662,14 +647,7 @@ void t_expect_wstr(int passed, const char *file, const char *func, int line, con
 
 void t_expect_wstrn(int passed, const char *file, const char *func, int line, const wchar_t *act, const wchar_t *exp, size_t len)
 {
-	print_wstr(passed,
-		   file,
-		   func,
-		   line,
-		   act,
-		   exp,
-		   (int)MIN(len, act == NULL ? 0 : wcslen(act)),
-		   (int)MIN(len, exp == NULL ? 0 : wcslen(exp)));
+	print_wstr(passed, file, func, line, act, exp, (int)MIN(len, act == NULL ? 0 : wcslen(act)), exp == NULL ? 0 : (int)wcslen(exp));
 }
 
 void t_expect_fail(int passed, const char *fmt, ...)
