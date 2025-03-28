@@ -229,6 +229,23 @@ int t_end(int passed, const char *func)
 	return 0;
 }
 
+void t_cstart()
+{
+}
+
+int t_cend(int passed, const char *func)
+{
+	(void)func;
+
+	if (!passed) {
+		s_data.failed++;
+		return 1;
+	}
+
+	s_data.passed++;
+	return 0;
+}
+
 void t_sstart(const char *func)
 {
 	for (int i = 0; i < s_data.depth; i++) {

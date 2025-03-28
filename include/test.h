@@ -25,6 +25,9 @@ void *t_get_priv();
 void t_start();
 int t_end(int passed, const char *func);
 
+void t_cstart();
+int t_cend(int passed, const char *func);
+
 void t_sstart(const char *func);
 int t_send(int passed, int failed);
 
@@ -75,6 +78,14 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 // Test end
 #define END return RES
 
+// Callback start
+#define CSTART                                                                                                                             \
+	int _passed = 1;                                                                                                                   \
+	t_cstart();
+
+// Callback end
+#define CEND t_cend(_passed, __func__)
+
 // Subtests start
 #define SSTART                                                                                                                             \
 	int _spassed = 0;                                                                                                                  \
@@ -83,14 +94,14 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 
 // Run test
 #define RUN(_fn)                                                                                                                           \
-	if (test_##_fn()) {                                                                                                                       \
+	if (test_##_fn()) {                                                                                                                \
 		_sfailed++;                                                                                                                \
 	} else {                                                                                                                           \
 		_spassed++;                                                                                                                \
 	}
 
 #define RUNP(_fn, ...)                                                                                                                     \
-	if (test_##_fn(__VA_ARGS__)) {                                                                                                            \
+	if (test_##_fn(__VA_ARGS__)) {                                                                                                     \
 		_sfailed++;                                                                                                                \
 	} else {                                                                                                                           \
 		_spassed++;                                                                                                                \

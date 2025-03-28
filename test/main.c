@@ -306,6 +306,25 @@ TEST(t_end)
 	END;
 }
 
+TEST(t_cend)
+{
+	START;
+
+	tdata_t tdata = t_get_data();
+
+	t_set_print(PRINT_DST_NONE());
+	t_set_wprint(PRINT_DST_WNONE());
+
+	t_cstart();
+
+	EXPECT_EQ(t_cend(0, ""), 1);
+	EXPECT_EQ(t_cend(1, ""), 0);
+
+	t_set_data(tdata);
+
+	END;
+}
+
 TEST(t_set_priv)
 {
 	START;
@@ -440,6 +459,7 @@ TEST(ctest)
 
 	RUN(t_run);
 	RUN(t_end);
+	RUN(t_cend);
 	RUN(t_set_priv);
 	RUN(t_setup_teardown);
 	RUN(t_expect);
