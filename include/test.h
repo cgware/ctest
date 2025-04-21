@@ -23,7 +23,7 @@ wprint_dst_t t_set_wprint(wprint_dst_t wprint);
 void *t_get_priv();
 
 void t_start();
-int t_end(int passed, const char *func);
+int t_end(int passed, const char *file, const char *func, int line);
 
 void t_cstart();
 int t_cend(int passed, const char *func);
@@ -45,10 +45,9 @@ void t_expect_g(int passed, const char *file, const char *func, int line, const 
 void t_expect_m(int passed, const char *file, const char *func, int line, const char *act, size_t act_size, const char *exp,
 		size_t exp_size, const char *cond, unsigned char mask, ...);
 
-void t_expect_fmt(int passed, const char *file, const char *func, int line, const char *act, unsigned int cnt, ...);
-
 void t_expect_str(int passed, const char *file, const char *func, int line, const char *act, const char *exp);
 void t_expect_strn(int passed, const char *file, const char *func, int line, const char *act, const char *exp, size_t len);
+void t_expect_fmt(int passed, const char *file, const char *func, int line, const char *act, unsigned int cnt, ...);
 
 void t_expect_wstr(int passed, const char *file, const char *func, int line, const wchar_t *act, const wchar_t *exp);
 void t_expect_wstrn(int passed, const char *file, const char *func, int line, const wchar_t *act, const wchar_t *exp, size_t len);
@@ -73,7 +72,7 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 	t_start()
 
 // Test result
-#define RES t_end(_passed, __func__)
+#define RES t_end(_passed, __FILE__, __func__, __LINE__)
 
 // Test end
 #define END return RES
@@ -198,32 +197,32 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 	}
 // clang-format on
 
+#define EXPECT_STR(_actual, _expected)                                                                                                     \
+	if (t_strcmp(_actual, _expected)) {                                                                                                \
+		t_expect_str(_passed, __FILE__, __func__, __LINE__, _actual, _expected);                                                   \
+		_passed = 0;                                                                                                               \
+	}
+
+#define EXPECT_STRN(_actual, _expected, _len)                                                                                              \
+	if (t_strncmp(_actual, _expected, _len)) {                                                                                         \
+		t_expect_strn(_passed, __FILE__, __func__, __LINE__, _actual, _expected, _len);                                            \
+		_passed = 0;                                                                                                               \
+	}
+
 #define EXPECT_FMT(_str, _cnt, ...)                                                                                                        \
 	if ((_cnt) != t_scan(_str, __VA_ARGS__)) {                                                                                         \
 		t_expect_fmt(_passed, __FILE__, __func__, __LINE__, _str, _cnt, __VA_ARGS__);                                              \
 		_passed = 0;                                                                                                               \
 	}
 
-#define EXPECT_STR(_actual, _expected)                                                                                                     \
-	if (t_strcmp(_actual, _expected) != 0) {                                                                                           \
-		t_expect_str(_passed, __FILE__, __func__, __LINE__, _actual, _expected);                                                   \
-		_passed = 0;                                                                                                               \
-	}
-
-#define EXPECT_STRN(_actual, _expected, _len)                                                                                              \
-	if (t_strncmp(_actual, _expected, _len) != 0) {                                                                                    \
-		t_expect_strn(_passed, __FILE__, __func__, __LINE__, _actual, _expected, _len);                                            \
-		_passed = 0;                                                                                                               \
-	}
-
 #define EXPECT_WSTR(_actual, _expected)                                                                                                    \
-	if (t_wstrcmp(_actual, _expected) != 0) {                                                                                          \
+	if (t_wstrcmp(_actual, _expected)) {                                                                                               \
 		t_expect_wstr(_passed, __FILE__, __func__, __LINE__, _actual, _expected);                                                  \
 		_passed = 0;                                                                                                               \
 	}
 
 #define EXPECT_WSTRN(_actual, _expected, _len)                                                                                             \
-	if (t_wstrncmp(_actual, _expected, _len) != 0) {                                                                                   \
+	if (t_wstrncmp(_actual, _expected, _len)) {                                                                                        \
 		t_expect_wstrn(_passed, __FILE__, __func__, __LINE__, _actual, _expected, _len);                                           \
 		_passed = 0;                                                                                                               \
 	}

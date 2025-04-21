@@ -6,7 +6,6 @@
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <wchar.h>
 
 #if defined(C_WIN)
@@ -61,7 +60,9 @@ void t_set_data(tdata_t data)
 
 static int t_printv(const char *fmt, va_list args)
 {
-	return c_dprintv(s_data.print, fmt, args);
+	int off = s_data.print.off;
+	s_data.print.off += c_dprintv(s_data.print, fmt, args);
+	return s_data.print.off - off;
 }
 
 static int t_printf(const char *fmt, ...)
@@ -75,7 +76,9 @@ static int t_printf(const char *fmt, ...)
 
 static int t_wprintv(const wchar_t *fmt, va_list args)
 {
-	return c_dwprintv(s_data.wprint, fmt, args);
+	int off = s_data.wprint.off;
+	s_data.wprint.off += c_dwprintv(s_data.wprint, fmt, args);
+	return s_data.wprint.off - off;
 }
 
 static int t_wprintf(const wchar_t *fmt, ...)
@@ -201,7 +204,7 @@ void t_start()
 	}
 }
 
-int t_end(int passed, const char *func)
+int t_end(int passed, const char *file, const char *func, int line)
 {
 	if (s_data.teardown) {
 		s_data.teardown(s_data.priv);
@@ -218,7 +221,15 @@ int t_end(int passed, const char *func)
 	pvr();
 
 	if (s_data.mem != s_data.mem_stats.mem) {
-		t_printf("\033[0;31mLEAK %s: %d B\033[0m\n", func + sizeof(TEST_PREFIX) - 1, s_data.mem_stats.mem - s_data.mem);
+		t_printf("\033[0;31mLEAK %s\033[0m\n", func + sizeof(TEST_PREFIX) - 1);
+
+		for (int i = 0; i < s_data.depth; i++) {
+			pv();
+		}
+		pv();
+
+		t_printf("\033[0;31m%s:%d: %d B\033[0m\n", file, line, s_data.mem_stats.mem - s_data.mem);
+
 		s_data.failed++;
 		return 1;
 	}
@@ -283,6 +294,15 @@ int t_scan(const char *str, const char *fmt, ...)
 	return ret;
 }
 
+static size_t t_strlen(const char *str)
+{
+	size_t len = 0;
+	while (*str++) {
+		len++;
+	}
+	return len;
+}
+
 int t_strcmp(const char *act, const char *exp)
 {
 	if (act == NULL && exp == NULL) {
@@ -291,18 +311,27 @@ int t_strcmp(const char *act, const char *exp)
 	if (act == NULL || exp == NULL) {
 		return 1;
 	}
-	return strcmp(act, exp);
+
+	size_t act_len = t_strlen(act);
+	size_t exp_len = t_strlen(exp);
+
+	if (act_len != exp_len) {
+		return 1;
+	}
+
+	return memcmp(act, exp, exp_len) == 0 ? 0 : 1;
 }
 
 int t_strncmp(const char *act, const char *exp, size_t len)
 {
-	if (act == NULL && exp == NULL) {
+	if (act == NULL && exp == NULL && len == 0) {
 		return 0;
 	}
-	if (act == NULL || exp == NULL || strlen(exp) != len) {
+	if (act == NULL || exp == NULL || t_strlen(exp) != len) {
 		return 1;
 	}
-	return strncmp(act, exp, len);
+
+	return memcmp(act, exp, len) == 0 ? 0 : 1;
 }
 
 int t_wstrcmp(const wchar_t *act, const wchar_t *exp)
@@ -313,18 +342,26 @@ int t_wstrcmp(const wchar_t *act, const wchar_t *exp)
 	if (act == NULL || exp == NULL) {
 		return 1;
 	}
-	return wcscmp(act, exp);
+
+	size_t act_len = wcslen(act);
+	size_t exp_len = wcslen(exp);
+
+	if (act_len != exp_len) {
+		return 1;
+	}
+
+	return memcmp(act, exp, exp_len) == 0 ? 0 : 1;
 }
 
 int t_wstrncmp(const wchar_t *act, const wchar_t *exp, size_t len)
 {
-	if (act == NULL && exp == NULL) {
+	if (act == NULL && exp == NULL && len == 0) {
 		return 0;
 	}
 	if (act == NULL || exp == NULL || wcslen(exp) != len) {
 		return 1;
 	}
-	return wcsncmp(act, exp, len);
+	return memcmp(act, exp, len) == 0 ? 0 : 1;
 }
 
 static void print_header(int passed, const char *file, const char *func, int line)
@@ -382,7 +419,7 @@ static void print_values(int passed, const char *file, const char *func, int lin
 			 size_t exp_size, const char *cond, va_list args)
 {
 	print_header(passed, file, func, line);
-	t_printf("\033[0;31m%s %s %s (", act, cond, exp);
+	t_printf("%s %s %s (", act, cond, exp);
 
 	int max_size = MAX((int)act_size, (int)exp_size);
 
@@ -423,8 +460,8 @@ static void print_values(int passed, const char *file, const char *func, int lin
 		break;
 	}
 	default:
-		t_printf("Unsupported type of size: %zu\n", act_size);
-		return;
+		t_printf("Unsupported type of size: %zu", act_size);
+		break;
 	}
 
 	t_printf(")");
@@ -458,6 +495,30 @@ void t_expect_m(int passed, const char *file, const char *func, int line, const 
 	t_printf(" & " BYTE_TO_BIN_PATTERN "\033[0m\n", BYTE_TO_BIN(mask));
 }
 
+static int print_line(int passed, const char *h, const char *str, size_t ln, size_t col, size_t line_start, size_t line_end, int *h_len)
+{
+	print_header(passed, NULL, NULL, 0);
+
+	int app = 0;
+	*h_len	= t_printf("%s:%zu: ", h, ln);
+	for (size_t i = 0; i < line_end - line_start; i++) {
+		char c = str[line_start + i];
+		// clang-format off
+		switch (c) {
+		case '\n': t_printf("\\n"); app += (i <= col ? 1 : 0); break;
+		case '\r': t_printf("\\r"); app += (i <= col ? 1 : 0); break;
+		case '\t': t_printf("\\t"); app += (i <= col ? 1 : 0); break;
+		case '\033': t_printf("\\033"); app += (i <= col ? 3 : 0); break;
+		default: t_printf("%c", c); break;
+		}
+		// clang-format on
+	}
+
+	t_printf("\033[0m\n");
+
+	return app;
+}
+
 static void print_str(int passed, const char *file, const char *func, int line, const char *act_str, const char *exp_str, size_t act_len,
 		      size_t exp_len)
 {
@@ -468,23 +529,13 @@ static void print_str(int passed, const char *file, const char *func, int line, 
 	size_t act_line_end = 0;
 	int diff	    = 0;
 
-	for (size_t i = 0; i < exp_len && i < act_len; i++) {
-		const char exp = exp_str[i];
-		const char act = act_str[i];
+	for (size_t i = 0; i < MAX(exp_len, act_len); i++) {
+		char exp = i < exp_len ? exp_str[i] : '\0';
+		char act = i < act_len ? act_str[i] : '\0';
 
-		if (act != exp) {
-			diff = 1;
-		}
+		diff |= act != exp;
 
-		if (diff == 0) {
-			if (exp == '\n') {
-				col = 0;
-				ln++;
-				line_start = i + 1;
-			} else {
-				col++;
-			}
-		} else {
+		if (diff) {
 			if (exp == '\n' && exp_line_end == 0) {
 				exp_line_end = i + 1;
 			}
@@ -494,55 +545,50 @@ static void print_str(int passed, const char *file, const char *func, int line, 
 			if (exp_line_end != 0 && act_line_end != 0) {
 				break;
 			}
+		} else if (exp == '\n') {
+			col = 0;
+			ln++;
+			line_start = i + 1;
+		} else {
+			col++;
 		}
-	}
-
-	if (exp_line_end == 0) {
-		exp_line_end = exp_len;
-	}
-	if (act_line_end == 0) {
-		act_line_end = act_len;
 	}
 
 	print_header(passed, file, func, line);
 	t_printf("\033[0m\n");
+
+	int h_len;
+	int exp_app = print_line(passed, "exp", exp_str, ln, col, line_start, exp_line_end == 0 ? exp_len : exp_line_end, &h_len);
+	int act_app = print_line(passed, "act", act_str, ln, col, line_start, act_line_end == 0 ? act_len : act_line_end, &h_len);
+
+	print_header(passed, NULL, NULL, 0);
+	t_printf("%*s^\033[0m\n", h_len + MIN(act_app, exp_app) + col, "");
+}
+
+static int print_wline(int passed, const char *h, const wchar_t *str, size_t ln, size_t col, size_t line_start, size_t line_end, int *h_len)
+{
 	print_header(passed, NULL, NULL, 0);
 
-	int exp_app = 0;
-	t_printf("exp:%d: ", ln);
-	for (size_t i = 0; i < exp_line_end - line_start; i++) {
-		char c = exp_str[line_start + i];
+	int app = 0;
+	*h_len	= t_printf("%s:%zu: ", h, ln);
+	c_startw(stdout);
+	for (size_t i = 0; i < line_end - line_start; i++) {
+		wchar_t c = str[line_start + i];
 		// clang-format off
 		switch (c) {
-		case '\n':t_printf("\\n"); exp_app += (i <= col ? 1 : 0); break;
-		case '\r':t_printf("\\r"); exp_app += (i <= col ? 1 : 0); break;
-		case '\t':t_printf("\\t"); exp_app += (i <= col ? 1 : 0); break;
-		default: t_printf("%c", c); break;
+		case L'\n': t_wprintf(L"\\n"); app += (i <= col ? 1 : 0); break;
+		case L'\r': t_wprintf(L"\\r"); app += (i <= col ? 1 : 0); break;
+		case L'\t': t_wprintf(L"\\t"); app += (i <= col ? 1 : 0); break;
+		case L'\033': t_wprintf(L"\\033"); app += (i <= col ? 3 : 0); break;
+		default: t_wprintf(L"%c", c); break;
 		}
 		// clang-format on
 	}
+	c_endw(stdout);
 
 	t_printf("\033[0m\n");
-	print_header(passed, NULL, NULL, 0);
-	t_printf("\033[0;31m");
 
-	int act_app = 0;
-	int h_len   = t_printf("act:%d: ", ln);
-	for (size_t i = 0; i < act_line_end - line_start; i++) {
-		char c = act_str[line_start + i];
-		// clang-format off
-		switch (c) {
-		case '\n': t_printf("\\n"); act_app += (i <= col ? 1 : 0); break;
-		case '\r': t_printf("\\r"); act_app += (i <= col ? 1 : 0); break;
-		case '\t': t_printf("\\t"); act_app += (i <= col ? 1 : 0); break;
-		default: t_printf("%c", c); break;
-		}
-		// clang-format on
-	}
-
-	t_printf("\033[0m\n");
-	print_header(passed, NULL, NULL, 0);
-	t_printf("\033[0;31m%*s^\033[0m\n", h_len + MIN(act_app, exp_app) + col, "");
+	return app;
 }
 
 static void print_wstr(int passed, const char *file, const char *func, int line, const wchar_t *act_str, const wchar_t *exp_str,
@@ -555,23 +601,13 @@ static void print_wstr(int passed, const char *file, const char *func, int line,
 	size_t act_line_end = 0;
 	int diff	    = 0;
 
-	for (size_t i = 0; i < exp_len && i < act_len; i++) {
-		const wchar_t exp = exp_str[i];
-		const wchar_t act = act_str[i];
+	for (size_t i = 0; i < MAX(exp_len, act_len); i++) {
+		wchar_t exp = i < exp_len ? exp_str[i] : '\0';
+		wchar_t act = i < act_len ? act_str[i] : '\0';
 
-		if (act != exp) {
-			diff = 1;
-		}
+		diff |= act != exp;
 
-		if (diff == 0) {
-			if (exp == '\n') {
-				col = 0;
-				ln++;
-				line_start = i + 1;
-			} else {
-				col++;
-			}
-		} else {
+		if (diff) {
 			if (exp == '\n' && exp_line_end == 0) {
 				exp_line_end = i + 1;
 			}
@@ -581,60 +617,34 @@ static void print_wstr(int passed, const char *file, const char *func, int line,
 			if (exp_line_end != 0 && act_line_end != 0) {
 				break;
 			}
+		} else if (exp == '\n') {
+			col = 0;
+			ln++;
+			line_start = i + 1;
+		} else {
+			col++;
 		}
-	}
-
-	if (exp_line_end == 0) {
-		exp_line_end = exp_len;
-	}
-	if (act_line_end == 0) {
-		act_line_end = act_len;
 	}
 
 	print_header(passed, file, func, line);
 	t_printf("\033[0m\n");
+
+	int h_len;
+	int exp_app = print_wline(passed, "exp", exp_str, ln, col, line_start, exp_line_end == 0 ? exp_len : exp_line_end, &h_len);
+	int act_app = print_wline(passed, "act", act_str, ln, col, line_start, act_line_end == 0 ? act_len : act_line_end, &h_len);
+
 	print_header(passed, NULL, NULL, 0);
+	t_printf("%*s^\033[0m\n", h_len + MIN(act_app, exp_app) + col, "");
+}
 
-	int exp_app = 0;
-	t_printf("exp(%d): ", ln);
-	c_startw(stdout);
-	for (size_t i = 0; i < exp_line_end - line_start; i++) {
-		wchar_t c = exp_str[line_start + i];
-		// clang-format off
-		switch (c) {
-		case L'\n':t_wprintf(L"\\n"); exp_app += (i <= col ? 1 : 0); break;
-		case L'\r':t_wprintf(L"\\r"); exp_app += (i <= col ? 1 : 0); break;
-		case L'\t':t_wprintf(L"\\t"); exp_app += (i <= col ? 1 : 0); break;
-		default: t_wprintf(L"%c", c); break;
-		}
-		// clang-format on
-	}
-	c_endw(stdout);
+void t_expect_str(int passed, const char *file, const char *func, int line, const char *act, const char *exp)
+{
+	print_str(passed, file, func, line, act, exp, act == NULL ? 0 : t_strlen(act), exp == NULL ? 0 : t_strlen(exp));
+}
 
-	t_printf("\033[0m\n");
-	print_header(passed, NULL, NULL, 0);
-	t_printf("\033[0;31m");
-
-	int act_app = 0;
-	int h_len   = t_printf("act(%d): ", ln);
-
-	c_startw(stdout);
-	for (size_t i = 0; i < act_line_end - line_start; i++) {
-		wchar_t c = act_str[line_start + i];
-		// clang-format off
-		switch (c) {
-		case '\n': t_wprintf(L"\\n"); act_app += (i <= col ? 1 : 0); break;
-		case '\r': t_wprintf(L"\\r"); act_app += (i <= col ? 1 : 0); break;
-		case '\t': t_wprintf(L"\\t"); act_app += (i <= col ? 1 : 0); break;
-		default: t_wprintf(L"%c", c); break;
-		}
-		// clang-format on
-	}
-	c_endw(stdout);
-
-	t_printf("\033[0m\n");
-	print_header(passed, NULL, NULL, 0);
-	t_printf("\033[0;31m%*s^\033[0m\n", h_len + MIN(act_app, exp_app) + col, "");
+void t_expect_strn(int passed, const char *file, const char *func, int line, const char *act, const char *exp, size_t len)
+{
+	print_str(passed, file, func, line, act, exp, MIN(len, act == NULL ? 0 : t_strlen(act)), exp == NULL ? 0 : t_strlen(exp));
 }
 
 void t_expect_fmt(int passed, const char *file, const char *func, int line, const char *act, unsigned int cnt, ...)
@@ -644,27 +654,17 @@ void t_expect_fmt(int passed, const char *file, const char *func, int line, cons
 	const char *exp = va_arg(args, const char *);
 	va_end(args);
 
-	print_str(passed, file, func, line, act, exp, (int)strlen(act), (int)strlen(exp));
-}
-
-void t_expect_str(int passed, const char *file, const char *func, int line, const char *act, const char *exp)
-{
-	print_str(passed, file, func, line, act, exp, act == NULL ? 0 : (int)strlen(act), exp == NULL ? 0 : (int)strlen(exp));
-}
-
-void t_expect_strn(int passed, const char *file, const char *func, int line, const char *act, const char *exp, size_t len)
-{
-	print_str(passed, file, func, line, act, exp, (int)MIN(len, act == NULL ? 0 : strlen(act)), exp == NULL ? 0 : (int)strlen(exp));
+	print_str(passed, file, func, line, act, exp, t_strlen(act), t_strlen(exp));
 }
 
 void t_expect_wstr(int passed, const char *file, const char *func, int line, const wchar_t *act, const wchar_t *exp)
 {
-	print_wstr(passed, file, func, line, act, exp, act == NULL ? 0 : (int)wcslen(act), exp == NULL ? 0 : (int)wcslen(exp));
+	print_wstr(passed, file, func, line, act, exp, act == NULL ? 0 : wcslen(act), exp == NULL ? 0 : wcslen(exp));
 }
 
 void t_expect_wstrn(int passed, const char *file, const char *func, int line, const wchar_t *act, const wchar_t *exp, size_t len)
 {
-	print_wstr(passed, file, func, line, act, exp, (int)MIN(len, act == NULL ? 0 : wcslen(act)), exp == NULL ? 0 : (int)wcslen(exp));
+	print_wstr(passed, file, func, line, act, exp, MIN(len, act == NULL ? 0 : wcslen(act)), exp == NULL ? 0 : wcslen(exp));
 }
 
 void t_expect_fail(int passed, const char *fmt, ...)
@@ -685,9 +685,7 @@ int t_fprintf(void *priv, const char *fmt, ...)
 
 	va_list args;
 	va_start(args, fmt);
-
 	int ret = vsnprintf(s_data.buf + s_data.buf_len, s_data.buf_size - s_data.buf_len, fmt, args);
-
 	va_end(args);
 
 	s_data.buf_len += ret;
@@ -697,14 +695,15 @@ int t_fprintf(void *priv, const char *fmt, ...)
 
 void t_expect_fstr_start(const char *exp, size_t len)
 {
-	(void)exp;
-	(void)len;
 	s_data.exp     = exp;
 	s_data.exp_len = len;
 
 	if (s_data.buf_size < len + 1) {
-		s_data.buf_size = len + 1;
-		s_data.buf	= realloc(s_data.buf, s_data.buf_size);
+		void *buf = realloc(s_data.buf, len + 1);
+		if (buf != NULL) {
+			s_data.buf_size = len + 1;
+			s_data.buf	= buf;
+		}
 	}
 
 	memset(s_data.buf, 0, s_data.buf_size);
@@ -715,7 +714,7 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line)
 {
 	const int ret = t_strcmp(s_data.buf, s_data.exp);
 
-	if (ret != 0) {
+	if (ret) {
 		print_str(passed, file, func, line, s_data.buf, s_data.exp, s_data.buf_len, s_data.exp_len);
 	}
 

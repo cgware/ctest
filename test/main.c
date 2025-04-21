@@ -28,250 +28,40 @@ typedef struct tdata_s {
 extern tdata_t t_get_data();
 extern void t_set_data(tdata_t data);
 
-TEST(success_test)
+#define CW "\033[0m"
+#define CR "\033[0;31m"
+#define CG "\033[0;32m"
+
+TEST(t_init_finish)
 {
 	START;
 
-	struct {
-		unsigned char b : 1;
-	} t = {0};
+	char buf[1024] = {0};
 
-	unsigned int u = 0;
+	tdata_t data = t_get_data();
 
-	EXPECT_EQ(1, 1);
-	EXPECT_NE(1, 2);
-	EXPECT_GT(2, 1);
-	EXPECT_GE(2, 1);
-	EXPECT_GE(2, 2);
-	EXPECT_LT(1, 2);
-	EXPECT_LE(1, 2);
-	EXPECT_LE(2, 2);
-	EXPECT_EQB(t.b, 0);
-	EXPECT_NEB(t.b, 1);
-	EXPECT_EQM(0x3, 0xa, 0x2);
-	EXPECT_NEM(0x3, 0xa, 0xb);
-	EXPECT_FMT("123", 1, "%3u", &u);
-	EXPECT_STR(NULL, NULL);
-	EXPECT_STR("a", "a");
-	EXPECT_STRN(NULL, NULL, 1);
-	EXPECT_STRN("abc", "ab", 2);
-	EXPECT_WSTR(NULL, NULL);
-	EXPECT_WSTR(L"a", L"a");
-	EXPECT_WSTRN(NULL, NULL, 1);
-	EXPECT_WSTRN(L"abc", L"ab", 2);
-	EXPECT(!strcmp("a", "a"));
-	char exp[] = "\tTest\n\tTest";
-	EXPECT_FSTR(t_fprintf(NULL, "\tTest\n\tTest"), exp, sizeof(exp) - 1);
+	t_init();
+
+	tdata_t tmp = {0};
+	tmp.print   = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	EXPECT_EQ(t_finish(), 0);
+	t_set_data(data);
+	EXPECT_STR(buf, CG "PASS 0 TESTS" CW "\n");
+
+	t_init();
+
+	tmp.failed = 1;
+	t_set_data(tmp);
+	EXPECT_EQ(t_finish(), 1);
+	t_set_data(data);
+	EXPECT_STR(buf, CR "FAIL 1/1 TEST" CW "\n");
+
 	END;
 }
 
-TEST(fail_test)
-{
-	START;
-
-	struct {
-		unsigned char b : 1;
-	} t = {0};
-
-	unsigned int u = 0;
-
-	EXPECT_EQB(t.b, 1);
-	EXPECT_EQ((char)0, 1);
-	EXPECT_EQ((short)0, 1);
-	EXPECT_EQ((int)0, 1);
-	EXPECT_EQ((long)0, 1);
-	EXPECT_EQ((long long)0, 1);
-
-	EXPECT_NEB(t.b, 0);
-	EXPECT_EQ(1, 2);
-	EXPECT_NE(1, 1);
-	EXPECT_GT(1, 2);
-	EXPECT_GT(2, 2);
-	EXPECT_GE(1, 2);
-	EXPECT_LT(2, 1);
-	EXPECT_LT(2, 1);
-	EXPECT_LE(2, 1);
-	EXPECT_EQM(0x3, 0xa, 0xe);
-	EXPECT_NEM(0x3, 0xa, 0xb);
-
-	EXPECT_FMT("123", 2, "%3u", &u);
-	EXPECT_FMT("aaa", 1, "%3u", &u);
-	EXPECT_FMT("aaaa", 1, "%3u", &u);
-	EXPECT_FMT("aaaaaaaaa", 1, "%3u", &u);
-
-	EXPECT_STR("", NULL);
-	EXPECT_STR("a", "b");
-	EXPECT_STRN("ab", NULL, 1);
-	EXPECT_STRN("ab", "bc", 1);
-	EXPECT_WSTR(L"", NULL);
-	EXPECT_WSTR(L"a", L"b");
-	EXPECT_WSTRN(L"ab", NULL, 1);
-	EXPECT_WSTRN(L"ab", L"bc", 1);
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-----------------------------------EXPECT_EQB-----------------------------------");
-
-	EXPECT_EQB(0, 1);
-	EXPECT_EQB(1, 0);
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "------------------------------------EXPECT_EQ-----------------------------------");
-
-	EXPECT_EQ(U8_MIN, U8_MAX);
-	EXPECT_EQ(U8_MIN, U16_MAX);
-	EXPECT_EQ(U8_MIN, U32_MAX);
-	EXPECT_EQ(U8_MIN, U64_MAX);
-	EXPECT_EQ(U8_MAX, U8_MIN);
-	EXPECT_EQ(U16_MIN, U8_MAX);
-	EXPECT_EQ(U16_MIN, U16_MAX);
-	EXPECT_EQ(U16_MIN, U32_MAX);
-	EXPECT_EQ(U16_MIN, U64_MAX);
-	EXPECT_EQ(U16_MAX, U16_MIN);
-
-	EXPECT_EQ(U32_MIN, U8_MAX);
-	EXPECT_EQ(U32_MIN, U16_MAX);
-	EXPECT_EQ(U32_MIN, U32_MAX);
-	EXPECT_EQ(U32_MIN, U64_MAX);
-	EXPECT_EQ(U32_MAX, U32_MIN);
-
-	EXPECT_EQ(U64_MIN, U8_MAX);
-	EXPECT_EQ(U64_MIN, U16_MAX);
-	EXPECT_EQ(U64_MIN, U32_MAX);
-	EXPECT_EQ(U64_MIN, U64_MAX);
-	EXPECT_EQ(U64_MAX, U64_MIN);
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-----------------------------------EXPECT_EQM-----------------------------------");
-
-	EXPECT_EQM(U8_MIN, U8_MAX, 1);
-	EXPECT_EQM(U8_MAX, U8_MIN, 1);
-	EXPECT_EQM(U16_MIN, U16_MAX, 1);
-	EXPECT_EQM(U16_MAX, U16_MIN, 1);
-	EXPECT_EQM(U32_MIN, U32_MAX, 1);
-	EXPECT_EQM(U32_MAX, U32_MIN, 1);
-	EXPECT_EQM(U64_MIN, U64_MAX, 1);
-	EXPECT_EQM(U64_MAX, U64_MIN, 1);
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-----------------------------------EXPECT_FMT-----------------------------------");
-
-	EXPECT_FMT("\taaaaaaa", 1, "\ta", &u);
-	EXPECT_FMT("\ta", 1, "\taaaaaaa", &u);
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-----------------------------------EXPECT_STR-----------------------------------");
-
-	EXPECT_STR("aaaaaaa", "a");
-	EXPECT_STR("a", "aaaaaaa");
-	EXPECT_STR("a\n", "b\n");
-	EXPECT_STR("\n\r\ta", "\n\r\tb");
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-----------------------------------EXPECT_STRN----------------------------------");
-
-	EXPECT_STRN("aaaaaaa", "a", 7);
-	EXPECT_STRN("a", "aaaaaaa", 7);
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-----------------------------------EXPECT_WSTR-----------------------------------");
-
-	EXPECT_WSTR(L"aaaaaaa", L"a");
-	EXPECT_WSTR(L"a", L"aaaaaaa");
-	EXPECT_WSTR(L"a\n", L"b\n");
-	EXPECT_WSTR(L"\n\r\ta", L"\n\r\tb");
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-----------------------------------EXPECT_WSTRN----------------------------------");
-
-	EXPECT_WSTRN(L"aaaaaaa", L"a", 7);
-	EXPECT_WSTRN(L"a", L"aaaaaaa", 7);
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-------------------------------------EXPECT-------------------------------------");
-
-	EXPECT(0);
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-----------------------------------EXPECT_FAIL----------------------------------");
-
-	EXPECT_FAIL("%s", "Fail");
-	EXPECT_FAIL("Fail %d", 1);
-
-	EXPECT_FAIL("%s", "");
-	EXPECT_FAIL("%s", "-----------------------------------EXPECT_FSTR----------------------------------");
-	EXPECT_FAIL("%s", "---------------------------------Missing actual---------------------------------");
-	{
-		char exp[] = "Test\r\n";
-		EXPECT_FSTR(t_fprintf(NULL, "est\r\n"), exp, sizeof(exp) - 1);
-	}
-	EXPECT_FAIL("%s", "--------------------------------Missing expected--------------------------------");
-	{
-		char exp[] = "est\n";
-		EXPECT_FSTR(t_fprintf(NULL, "Test\n"), exp, sizeof(exp) - 1);
-	}
-	EXPECT_FAIL("%s", "------------------------------------Different-----------------------------------");
-	{
-		char exp[] = "Test\n";
-		EXPECT_FSTR(t_fprintf(NULL, "Tost\n"), exp, sizeof(exp) - 1);
-	}
-	EXPECT_FAIL("%s", "------------------------------Missing \\n expected------------------------------");
-	{
-		char exp[] = "Test";
-		EXPECT_FSTR(t_fprintf(NULL, "Test\n"), exp, sizeof(exp) - 1);
-	}
-	EXPECT_FAIL("%s", "-------------------------------Missing \\n actual-------------------------------");
-	{
-		char exp[] = "Test\n";
-		EXPECT_FSTR(t_fprintf(NULL, "Test"), exp, sizeof(exp) - 1);
-	}
-	EXPECT_FAIL("%s", "----------------------------Different in second line----------------------------");
-	{
-		char exp[] = "\tTest\n\tTest";
-		EXPECT_FSTR(t_fprintf(NULL, "\tTest\n\tGest"), exp, sizeof(exp) - 1);
-	}
-	EXPECT_FAIL("%s", "---------------------------------------Long-------------------------------------");
-	{
-		char exp[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit,\n"
-			     "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n"
-			     "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.\n"
-			     "Duis aute irure dolor in rep";
-		EXPECT_FSTR(t_fprintf(NULL,
-				      "Lorem ipsum dolor sit amet, consectetur adipiscing elit,\n"
-				      "sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n"
-				      "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo "
-				      "consequat.\n"
-				      "Duis aute irure dolor in res"),
-			    exp,
-			    sizeof(exp) - 1);
-	}
-	_passed = 1;
-	END;
-}
-
-TESTP(param_test, int x)
-{
-	START;
-	EXPECT_EQ(x, 1);
-	END;
-}
-
-TEST(subsubtest)
-{
-	SSTART;
-	SEND;
-}
-
-TEST(subtest)
-{
-	SSTART;
-	RUN(success_test);
-	RUN(fail_test);
-	RUN(subsubtest);
-	RUNP(param_test, 1);
-	SEND;
-}
-
-int empty_test()
+static int empty_test()
 {
 	return 1;
 }
@@ -280,62 +70,31 @@ TEST(t_run)
 {
 	START;
 
+	tdata_t data = t_get_data();
+
 	EXPECT_EQ(t_run(empty_test, 0), 1);
 	EXPECT_EQ(t_run(empty_test, 1), 1);
 
-	END;
-}
+	tdata_t tmp = t_get_data();
 
-TEST(t_end)
-{
-	START;
-
-	tdata_t tdata = t_get_data();
-
-	t_set_print(PRINT_DST_NONE());
-	t_set_wprint(PRINT_DST_WNONE());
-
-	t_start();
-
-	mem_stats_alloc(1);
-	EXPECT_EQ(t_end(1, ""), 1);
-	mem_stats_free(1);
-
-	t_set_data(tdata);
+	t_set_data(data);
+	EXPECT_EQ(data.print.cb, tmp.print.cb);
+	EXPECT_EQ(data.wprint.cb, tmp.wprint.cb);
 
 	END;
 }
 
-TEST(t_cend)
+TEST(t_priv)
 {
 	START;
 
-	tdata_t tdata = t_get_data();
-
-	t_set_print(PRINT_DST_NONE());
-	t_set_wprint(PRINT_DST_WNONE());
-
-	t_cstart();
-
-	EXPECT_EQ(t_cend(0, ""), 1);
-	EXPECT_EQ(t_cend(1, ""), 0);
-
-	t_set_data(tdata);
-
-	END;
-}
-
-TEST(t_set_priv)
-{
-	START;
-
-	tdata_t tdata = t_get_data();
+	tdata_t data = t_get_data();
 
 	int a = 0;
 	t_set_priv(&a);
 	EXPECT_EQ(t_get_priv(), &a);
 
-	t_set_data(tdata);
+	t_set_data(data);
 
 	END;
 }
@@ -356,18 +115,155 @@ TEST(t_setup_teardown)
 {
 	START;
 
-	tdata_t tdata = t_get_data();
+	tdata_t data = t_get_data();
 
-	t_set_print(PRINT_DST_NONE());
-	t_set_wprint(PRINT_DST_WNONE());
+	tdata_t tmp = {0};
+	t_set_data(tmp);
 
 	t_setup(setup);
 	t_teardown(teardown);
 
 	t_start();
-	t_end(0, "");
+	t_end(0, "", "", 0);
 
-	t_set_data(tdata);
+	t_set_data(data);
+
+	END;
+}
+
+TEST(t_start_end)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	int res;
+
+	tmp.print.off = 0;
+	t_set_data(tmp);
+	t_start();
+	res = t_end(1, "file", "test_func", 0);
+	t_set_data(data);
+	EXPECT_EQ(res, 0);
+	EXPECT_STR(buf, "├─" CG "PASS func" CW "\n");
+
+	END;
+}
+
+TEST(t_end_leak)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = data;
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.depth    = 1;
+	tmp.mem -= 1;
+	t_set_data(tmp);
+
+	int res;
+
+	res = t_end(1, "file", "test_func", 0);
+
+	t_set_data(data);
+	EXPECT_EQ(res, 1);
+	EXPECT_STR(buf,
+		   "│ ├─" CR "LEAK func" CW "\n"
+		   "│ │ " CR "file:0: 1 B" CW "\n");
+
+	END;
+}
+
+TEST(t_cstart_cend)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	int res;
+
+	t_set_data(tmp);
+	t_cstart();
+	res = t_cend(1, "func");
+	t_set_data(data);
+	EXPECT_EQ(res, 0);
+	EXPECT_STR(buf, "");
+
+	t_set_data(tmp);
+	t_cstart();
+	res = t_cend(0, "func");
+	t_set_data(data);
+	EXPECT_EQ(res, 1);
+	EXPECT_STR(buf, "");
+
+	END;
+}
+
+TEST(t_sstart)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.depth    = 1;
+
+	t_set_data(tmp);
+	t_sstart("test_func");
+	t_set_data(data);
+
+	EXPECT_STR(buf, "│ ├─func\n");
+
+	END;
+}
+
+TEST(t_send)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	int res;
+
+	t_set_data(tmp);
+	res = t_send(0, 1);
+	t_set_data(data);
+	EXPECT_EQ(res, 1);
+	EXPECT_STR(buf, "└─" CR "FAIL 1/1 TEST" CW "\n");
+
+	t_set_data(tmp);
+	res = t_send(1, 2);
+	t_set_data(data);
+	EXPECT_EQ(res, 1);
+	EXPECT_STR(buf, "└─" CR "FAIL 2/3 TESTS" CW "\n");
+
+	t_set_data(tmp);
+	res = t_send(1, 0);
+	t_set_data(data);
+	EXPECT_EQ(res, 0);
+	EXPECT_STR(buf, "└─" CG "PASS 1 TEST" CW "\n");
+
+	t_set_data(tmp);
+	res = t_send(2, 0);
+	t_set_data(data);
+	EXPECT_EQ(res, 0);
+	EXPECT_STR(buf, "└─" CG "PASS 2 TESTS" CW "\n");
 
 	END;
 }
@@ -400,28 +296,8 @@ TEST(t_set_print)
 	t_set_print(PRINT_DST_NONE());
 	t_set_wprint(PRINT_DST_WNONE());
 
-	EXPECT_STR("a", "b");
-	EXPECT_WSTR(L"a", L"b");
-
 	t_set_data(tdata);
 	_passed = 1;
-
-	END;
-}
-
-TEST(t_send)
-{
-	START;
-
-	tdata_t tdata = t_get_data();
-
-	t_set_print(PRINT_DST_NONE());
-	t_set_wprint(PRINT_DST_WNONE());
-
-	t_send(0, 0);
-	t_send(0, 1);
-
-	t_set_data(tdata);
 
 	END;
 }
@@ -451,21 +327,798 @@ TEST(t_finish)
 	END;
 }
 
+TEST(t_scan)
+{
+	START;
+
+	unsigned int u = 0;
+
+	EXPECT_EQ(t_scan("123", "%3u", &u), 1);
+	EXPECT_EQ(t_scan("aaa", "%3u", &u), 0);
+
+	END;
+}
+
+TEST(t_strcmp)
+{
+	START;
+	EXPECT_EQ(t_strcmp(NULL, NULL), 0);
+	EXPECT_EQ(t_strcmp("", NULL), 1);
+	EXPECT_EQ(t_strcmp(NULL, ""), 1);
+	EXPECT_EQ(t_strcmp("", ""), 0);
+	EXPECT_EQ(t_strcmp("", " "), 1);
+	EXPECT_EQ(t_strcmp(" ", ""), 1);
+	EXPECT_EQ(t_strcmp("a", "a"), 0);
+	EXPECT_EQ(t_strcmp("a", "b"), 1);
+	EXPECT_EQ(t_strcmp("b", "a"), 1);
+
+	END;
+}
+
+TEST(t_strncmp)
+{
+	START;
+	EXPECT_EQ(t_strncmp(NULL, NULL, 0), 0);
+	EXPECT_EQ(t_strncmp(NULL, NULL, 1), 1);
+	EXPECT_EQ(t_strncmp("", NULL, 0), 1);
+	EXPECT_EQ(t_strncmp(NULL, "", 0), 1);
+	EXPECT_EQ(t_strncmp("", "", 0), 0);
+	EXPECT_EQ(t_strncmp("", " ", 1), 1);
+	EXPECT_EQ(t_strncmp(" ", "", 0), 0);
+	EXPECT_EQ(t_strncmp("a", "a", 1), 0);
+	EXPECT_EQ(t_strncmp("a", "b", 1), 1);
+	EXPECT_EQ(t_strncmp("b", "a", 1), 1);
+
+	END;
+}
+
+TEST(t_wstrcmp)
+{
+	START;
+	EXPECT_EQ(t_wstrcmp(NULL, NULL), 0);
+	EXPECT_EQ(t_wstrcmp(L"", NULL), 1);
+	EXPECT_EQ(t_wstrcmp(NULL, L""), 1);
+	EXPECT_EQ(t_wstrcmp(L"", L""), 0);
+	EXPECT_EQ(t_wstrcmp(L"", L" "), 1);
+	EXPECT_EQ(t_wstrcmp(L" ", L""), 1);
+	EXPECT_EQ(t_wstrcmp(L"a", L"a"), 0);
+	EXPECT_EQ(t_wstrcmp(L"a", L"b"), 1);
+	EXPECT_EQ(t_wstrcmp(L"b", L"a"), 1);
+
+	END;
+}
+
+TEST(t_wstrncmp)
+{
+	START;
+	EXPECT_EQ(t_wstrncmp(NULL, NULL, 0), 0);
+	EXPECT_EQ(t_wstrncmp(NULL, NULL, 1), 1);
+	EXPECT_EQ(t_wstrncmp(L"", NULL, 0), 1);
+	EXPECT_EQ(t_wstrncmp(NULL, L"", 0), 1);
+	EXPECT_EQ(t_wstrncmp(L"", L"", 0), 0);
+	EXPECT_EQ(t_wstrncmp(L"", L" ", 1), 1);
+	EXPECT_EQ(t_wstrncmp(L" ", L"", 0), 0);
+	EXPECT_EQ(t_wstrncmp(L"a", L"a", 1), 0);
+	EXPECT_EQ(t_wstrncmp(L"a", L"b", 1), 1);
+	EXPECT_EQ(t_wstrncmp(L"b", L"a", 1), 1);
+
+	END;
+}
+
+TEST(check)
+{
+	SSTART;
+	RUN(t_scan);
+	RUN(t_strcmp);
+	RUN(t_strncmp);
+	RUN(t_wstrcmp);
+	RUN(t_wstrncmp);
+	SEND;
+}
+
+TEST(t_expect_ch)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_ch(0, NULL, NULL, 0, "check");
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "check" CW "\n");
+	END;
+}
+
+TEST(t_expect_g)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_g(0, NULL, NULL, 0, NULL, 0, NULL, 0, "==", 0, 1);
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "(null) == (null) (0 == 1)" CW "\n");
+
+	t_set_data(tmp);
+	t_expect_g(0, NULL, NULL, 0, NULL, 1, NULL, 1, "==", U8_MIN, U8_MAX);
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "(null) == (null) (00000000 == 11111111)" CW "\n");
+
+	t_set_data(tmp);
+	t_expect_g(0, NULL, NULL, 0, NULL, 2, NULL, 2, "==", U16_MIN, U16_MAX);
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "(null) == (null) (0000 == FFFF)" CW "\n");
+
+	t_set_data(tmp);
+	t_expect_g(0, NULL, NULL, 0, NULL, 3, NULL, 3, "==", 0, 0);
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "(null) == (null) (Unsupported type of size: 3)" CW "\n");
+
+	t_set_data(tmp);
+	t_expect_g(0, NULL, NULL, 0, NULL, 4, NULL, 4, "==", U32_MIN, U32_MAX);
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "(null) == (null) (00000000 == FFFFFFFF)" CW "\n");
+
+	t_set_data(tmp);
+	t_expect_g(0, NULL, NULL, 0, NULL, 8, NULL, 8, "==", U64_MIN, U64_MAX);
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "(null) == (null) (0000000000000000 == FFFFFFFFFFFFFFFF)" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_m)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_m(0, NULL, NULL, 0, NULL, 0, NULL, 0, "==", 0, 0, 1);
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "(null) == (null) (0 == 1) & 00000000" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_str_null)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_str(0, NULL, NULL, 0, NULL, NULL);
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+	END;
+}
+
+TEST(t_expect_str_passed)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.depth    = 1;
+
+	t_set_data(tmp);
+	t_expect_str(1, "file", "test_func", 0, NULL, NULL);
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ ├─" CR "FAIL func" CW "\n"
+		   "│ │ " CR "file:0: " CW "\n"
+		   "│ │ " CR "exp:0: " CW "\n"
+		   "│ │ " CR "act:0: " CW "\n"
+		   "│ │ " CR "       ^" CW "\n");
+	END;
+}
+
+TEST(t_expect_str_empty)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_str(0, NULL, NULL, 0, "", "");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_str_same)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_str(0, NULL, NULL, 0, "a", "a");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: a" CW "\n"
+		   "│ " CR "act:0: a" CW "\n"
+		   "│ " CR "        ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_str_same_nl)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_str(0, NULL, NULL, 0, "\n", "\n");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:1: " CW "\n"
+		   "│ " CR "act:1: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_str_diff)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_str(0, NULL, NULL, 0, "a", "b");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: b" CW "\n"
+		   "│ " CR "act:0: a" CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_str_diff_nl)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_str(0, NULL, NULL, 0, "a\na", "b\na");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: b\\n" CW "\n"
+		   "│ " CR "act:0: a\\n" CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_str_diff_not_print)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_str(0, NULL, NULL, 0, "\r\t\033a", "\r\t\033b");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: \\r\\t\\033b" CW "\n"
+		   "│ " CR "act:0: \\r\\t\\033a" CW "\n"
+		   "│ " CR "               ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_str_exp_nl)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_str(0, NULL, NULL, 0, "a", "b\na");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: b\\n" CW "\n"
+		   "│ " CR "act:0: a" CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_str_act_nl)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_str(0, NULL, NULL, 0, "b\na", "a");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: a" CW "\n"
+		   "│ " CR "act:0: b\\n" CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_strn_null)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_strn(0, NULL, NULL, 0, NULL, NULL, 0);
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_fmt_null)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	unsigned int u = 0;
+
+	t_set_data(tmp);
+	t_expect_fmt(0, NULL, NULL, 0, "%u", 1, &u);
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: %u" CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_str)
+{
+	SSTART;
+	RUN(t_expect_str_null);
+	RUN(t_expect_str_passed);
+	RUN(t_expect_str_empty);
+	RUN(t_expect_str_same);
+	RUN(t_expect_str_same_nl);
+	RUN(t_expect_str_diff);
+	RUN(t_expect_str_diff_nl);
+	RUN(t_expect_str_diff_not_print);
+	RUN(t_expect_str_exp_nl);
+	RUN(t_expect_str_act_nl);
+	RUN(t_expect_strn_null);
+	RUN(t_expect_fmt_null);
+	SEND;
+}
+
+TEST(t_expect_wstr_null)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(0, NULL, NULL, 0, NULL, NULL);
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstr_passed)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(1, "file", "test_func", 0, NULL, NULL);
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "├─" CR "FAIL func" CW "\n"
+		   "│ " CR "file:0: " CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+	END;
+}
+
+TEST(t_expect_wstr_empty)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(0, NULL, NULL, 0, L"", L"");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstr_same)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(0, NULL, NULL, 0, L"a", L"a");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "        ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstr_same_nl)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(0, NULL, NULL, 0, L"\n", L"\n");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:1: " CW "\n"
+		   "│ " CR "act:1: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstr_diff)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(0, NULL, NULL, 0, L"a", L"b");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstr_diff_nl)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(0, NULL, NULL, 0, L"a\na", L"b\na");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstr_diff_not_print)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(0, NULL, NULL, 0, L"\r\t\033a", L"\r\t\033b");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "               ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstr_exp_nl)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(0, NULL, NULL, 0, L"a", L"\n");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstr_act_nl)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstr(0, NULL, NULL, 0, L"\n", L"a");
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstrn_null)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_wstrn(0, NULL, NULL, 0, NULL, NULL, 0);
+	t_set_data(data);
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: " CW "\n"
+		   "│ " CR "act:0: " CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_wstr)
+{
+	SSTART;
+	RUN(t_expect_wstr_null);
+	RUN(t_expect_wstr_passed);
+	RUN(t_expect_wstr_empty);
+	RUN(t_expect_wstr_same);
+	RUN(t_expect_wstr_same_nl);
+	RUN(t_expect_wstr_diff);
+	RUN(t_expect_wstr_diff_nl);
+	RUN(t_expect_wstr_diff_not_print);
+	RUN(t_expect_wstr_exp_nl);
+	RUN(t_expect_wstr_act_nl);
+	RUN(t_expect_wstrn_null);
+	SEND;
+}
+
+TEST(t_expect_fail)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+
+	t_set_data(tmp);
+	t_expect_fail(0, "FAIL");
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "FAIL" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_fstr)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.buf	     = malloc(1);
+	tmp.buf_size = 1;
+	tmp.buf_len  = 0;
+
+	t_set_data(tmp);
+	t_expect_fstr_start("aa", 2);
+	EXPECT_EQ(t_fprintf(NULL, "%s", "bb"), 2);
+	int res = t_expect_fstr_end(0, NULL, NULL, 0);
+
+	tmp = t_get_data();
+	free(tmp.buf);
+
+	t_set_data(data);
+	EXPECT_EQ(res, 1)
+	EXPECT_STR(buf,
+		   "│ " CR CW "\n"
+		   "│ " CR "exp:0: aa" CW "\n"
+		   "│ " CR "act:0: bb" CW "\n"
+		   "│ " CR "       ^" CW "\n");
+
+	END;
+}
+
+TEST(expect)
+{
+	SSTART;
+	RUN(t_expect_ch);
+	RUN(t_expect_g);
+	RUN(t_expect_m);
+	RUN(t_expect_str);
+	RUN(t_expect_wstr);
+	RUN(t_expect_fail);
+	RUN(t_expect_fstr);
+	SEND;
+}
+
 TEST(ctest)
 {
 	SSTART;
 
-	RUN(subtest);
-
+	RUN(t_init_finish);
 	RUN(t_run);
-	RUN(t_end);
-	RUN(t_cend);
-	RUN(t_set_priv);
+	RUN(t_priv);
 	RUN(t_setup_teardown);
+	RUN(t_start_end);
+	RUN(t_end_leak);
+	RUN(t_cstart_cend);
+	RUN(t_sstart);
+	RUN(t_send);
 	RUN(t_expect);
 	RUN(t_set_print);
 	RUN(t_send);
 	RUN(t_finish);
+	RUN(check);
+	RUN(expect);
 
 	SEND;
 }
