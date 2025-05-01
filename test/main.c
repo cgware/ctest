@@ -11,8 +11,8 @@ typedef struct tdata_s {
 	void *priv;
 	setup_fn setup;
 	setup_fn teardown;
-	print_dst_t print;
-	wprint_dst_t wprint;
+	dst_t dst;
+	wdst_t wdst;
 	long long passed;
 	long long failed;
 	int depth;
@@ -43,7 +43,7 @@ TEST(t_init_finish)
 	t_init();
 
 	tdata_t tmp = {0};
-	tmp.print   = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	    = DST_BUF(buf);
 
 	t_set_data(tmp);
 	EXPECT_EQ(t_finish(), 0);
@@ -78,8 +78,8 @@ TEST(t_run)
 	tdata_t tmp = t_get_data();
 
 	t_set_data(data);
-	EXPECT_EQ(data.print.cb, tmp.print.cb);
-	EXPECT_EQ(data.wprint.cb, tmp.wprint.cb);
+	EXPECT_EQ(data.dst.putv, tmp.dst.putv);
+	EXPECT_EQ(data.wdst.wputv, tmp.wdst.wputv);
 
 	END;
 }
@@ -139,11 +139,11 @@ TEST(t_start_end)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	int res;
 
-	tmp.print.off = 0;
+	tmp.dst.off = 0;
 	t_set_data(tmp);
 	t_start();
 	res = t_end(1, "file", "test_func", 0);
@@ -162,7 +162,7 @@ TEST(t_end_leak)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = data;
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 	tmp.depth    = 1;
 	tmp.mem -= 1;
 	t_set_data(tmp);
@@ -188,7 +188,7 @@ TEST(t_cstart_cend)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	int res;
 
@@ -217,7 +217,7 @@ TEST(t_sstart)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 	tmp.depth    = 1;
 
 	t_set_data(tmp);
@@ -237,7 +237,7 @@ TEST(t_send)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	int res;
 
@@ -274,8 +274,8 @@ TEST(t_expect)
 
 	tdata_t tdata = t_get_data();
 
-	t_set_print(PRINT_DST_NONE());
-	t_set_wprint(PRINT_DST_WNONE());
+	t_set_dst(DST_NONE());
+	t_set_wdst(WDST_NONE());
 
 	t_expect_g(1, __FILE__, __func__, __LINE__, "", 2, "", 0, "==");
 	t_expect_g(1, __FILE__, __func__, __LINE__, "", 4, "", 3, "==");
@@ -293,8 +293,8 @@ TEST(t_set_print)
 
 	tdata_t tdata = t_get_data();
 
-	t_set_print(PRINT_DST_NONE());
-	t_set_wprint(PRINT_DST_WNONE());
+	t_set_dst(DST_NONE());
+	t_set_wdst(WDST_NONE());
 
 	t_set_data(tdata);
 	_passed = 1;
@@ -309,8 +309,8 @@ TEST(t_finish)
 	tdata_t tdata = t_get_data();
 	tdata_t tmp   = tdata;
 
-	tmp.print  = PRINT_DST_NONE();
-	tmp.wprint = PRINT_DST_WNONE();
+	tmp.dst	 = DST_NONE();
+	tmp.wdst = WDST_NONE();
 
 	tmp.failed = 1;
 	tmp.buf	   = malloc(tmp.buf_size);
@@ -424,7 +424,7 @@ TEST(t_expect_ch)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_ch(0, NULL, NULL, 0, "check");
@@ -441,7 +441,7 @@ TEST(t_expect_g)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_g(0, NULL, NULL, 0, NULL, 0, NULL, 0, "==", 0, 1);
@@ -484,7 +484,7 @@ TEST(t_expect_m)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_m(0, NULL, NULL, 0, NULL, 0, NULL, 0, "==", 0, 0, 1);
@@ -502,7 +502,7 @@ TEST(t_expect_str_null)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_str(0, NULL, NULL, 0, NULL, NULL);
@@ -523,7 +523,7 @@ TEST(t_expect_str_passed)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 	tmp.depth    = 1;
 
 	t_set_data(tmp);
@@ -546,7 +546,7 @@ TEST(t_expect_str_empty)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_str(0, NULL, NULL, 0, "", "");
@@ -568,7 +568,7 @@ TEST(t_expect_str_same)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_str(0, NULL, NULL, 0, "a", "a");
@@ -590,7 +590,7 @@ TEST(t_expect_str_same_nl)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_str(0, NULL, NULL, 0, "\n", "\n");
@@ -612,7 +612,7 @@ TEST(t_expect_str_diff)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_str(0, NULL, NULL, 0, "a", "b");
@@ -634,7 +634,7 @@ TEST(t_expect_str_diff_nl)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_str(0, NULL, NULL, 0, "a\na", "b\na");
@@ -656,7 +656,7 @@ TEST(t_expect_str_diff_not_print)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_str(0, NULL, NULL, 0, "\r\t\033a", "\r\t\033b");
@@ -678,7 +678,7 @@ TEST(t_expect_str_exp_nl)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_str(0, NULL, NULL, 0, "a", "b\na");
@@ -700,7 +700,7 @@ TEST(t_expect_str_act_nl)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_str(0, NULL, NULL, 0, "b\na", "a");
@@ -722,7 +722,7 @@ TEST(t_expect_strn_null)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_strn(0, NULL, NULL, 0, NULL, NULL, 0);
@@ -744,7 +744,7 @@ TEST(t_expect_fmt_null)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	unsigned int u = 0;
 
@@ -786,7 +786,7 @@ TEST(t_expect_wstr_null)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(0, NULL, NULL, 0, NULL, NULL);
@@ -808,7 +808,7 @@ TEST(t_expect_wstr_passed)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(1, "file", "test_func", 0, NULL, NULL);
@@ -830,7 +830,7 @@ TEST(t_expect_wstr_empty)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(0, NULL, NULL, 0, L"", L"");
@@ -852,7 +852,7 @@ TEST(t_expect_wstr_same)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(0, NULL, NULL, 0, L"a", L"a");
@@ -874,7 +874,7 @@ TEST(t_expect_wstr_same_nl)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(0, NULL, NULL, 0, L"\n", L"\n");
@@ -896,7 +896,7 @@ TEST(t_expect_wstr_diff)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(0, NULL, NULL, 0, L"a", L"b");
@@ -918,7 +918,7 @@ TEST(t_expect_wstr_diff_nl)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(0, NULL, NULL, 0, L"a\na", L"b\na");
@@ -940,7 +940,7 @@ TEST(t_expect_wstr_diff_not_print)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(0, NULL, NULL, 0, L"\r\t\033a", L"\r\t\033b");
@@ -962,7 +962,7 @@ TEST(t_expect_wstr_exp_nl)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(0, NULL, NULL, 0, L"a", L"\n");
@@ -984,7 +984,7 @@ TEST(t_expect_wstr_act_nl)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstr(0, NULL, NULL, 0, L"\n", L"a");
@@ -1006,7 +1006,7 @@ TEST(t_expect_wstrn_null)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_wstrn(0, NULL, NULL, 0, NULL, NULL, 0);
@@ -1045,7 +1045,7 @@ TEST(t_expect_fail)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
 	t_expect_fail(0, "FAIL");
@@ -1063,7 +1063,7 @@ TEST(t_expect_fstr)
 
 	tdata_t data = t_get_data();
 	tdata_t tmp  = {0};
-	tmp.print    = PRINT_DST_BUF(buf, sizeof(buf), 0);
+	tmp.dst	     = DST_BUF(buf);
 	tmp.buf	     = malloc(1);
 	tmp.buf_size = 1;
 	tmp.buf_len  = 0;

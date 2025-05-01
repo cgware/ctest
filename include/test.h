@@ -1,7 +1,9 @@
 #ifndef TEST_H
 #define TEST_H
 
+#include "dst.h"
 #include "print.h"
+#include "wdst.h"
 #include "wprint.h"
 
 void t_init();
@@ -17,8 +19,8 @@ void t_set_priv(void *priv);
 void t_setup(setup_fn setup);
 void t_teardown(teardown_fn teardown);
 
-print_dst_t t_set_print(print_dst_t print);
-wprint_dst_t t_set_wprint(wprint_dst_t wprint);
+dst_t t_set_dst(dst_t dst);
+wdst_t t_set_wdst(wdst_t dst);
 
 void *t_get_priv();
 

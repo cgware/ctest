@@ -32,8 +32,8 @@ typedef struct tdata_s {
 	void *priv;
 	setup_fn setup;
 	setup_fn teardown;
-	print_dst_t print;
-	wprint_dst_t wprint;
+	dst_t dst;
+	wdst_t wdst;
 	long long passed;
 	long long failed;
 	int depth;
@@ -58,34 +58,34 @@ void t_set_data(tdata_t data)
 	s_data = data;
 }
 
-static int t_printv(const char *fmt, va_list args)
+static size_t t_printv(const char *fmt, va_list args)
 {
-	int off = s_data.print.off;
-	s_data.print.off += c_dprintv(s_data.print, fmt, args);
-	return s_data.print.off - off;
+	size_t off = s_data.dst.off;
+	s_data.dst.off += dputv(s_data.dst, fmt, args);
+	return s_data.dst.off - off;
 }
 
-static int t_printf(const char *fmt, ...)
+static size_t t_printf(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	int ret = t_printv(fmt, args);
+	size_t ret = t_printv(fmt, args);
 	va_end(args);
 	return ret;
 }
 
-static int t_wprintv(const wchar_t *fmt, va_list args)
+static size_t t_wprintv(const wchar_t *fmt, va_list args)
 {
-	int off = s_data.wprint.off;
-	s_data.wprint.off += c_dwprintv(s_data.wprint, fmt, args);
-	return s_data.wprint.off - off;
+	size_t off = s_data.wdst.off;
+	s_data.wdst.off += wdputv(s_data.wdst, fmt, args);
+	return s_data.wdst.off - off;
 }
 
-static int t_wprintf(const wchar_t *fmt, ...)
+static size_t t_wprintf(const wchar_t *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	int ret = t_wprintv(fmt, args);
+	size_t ret = t_wprintv(fmt, args);
 	va_end(args);
 	return ret;
 }
@@ -105,17 +105,17 @@ void t_teardown(teardown_fn teardown)
 	s_data.teardown = teardown;
 }
 
-print_dst_t t_set_print(print_dst_t print)
+dst_t t_set_dst(dst_t dst)
 {
-	print_dst_t cur = s_data.print;
-	s_data.print	= print;
+	dst_t cur  = s_data.dst;
+	s_data.dst = dst;
 	return cur;
 }
 
-wprint_dst_t t_set_wprint(wprint_dst_t wprint)
+wdst_t t_set_wdst(wdst_t dst)
 {
-	wprint_dst_t cur = s_data.wprint;
-	s_data.wprint	 = wprint;
+	wdst_t cur  = s_data.wdst;
+	s_data.wdst = dst;
 	return cur;
 }
 
@@ -144,8 +144,8 @@ static inline int pvr()
 
 void t_init()
 {
-	s_data.print  = PRINT_DST_STD();
-	s_data.wprint = PRINT_DST_WSTD();
+	s_data.dst  = DST_STD();
+	s_data.wdst = WDST_STD();
 
 	s_data.passed = 0;
 	s_data.failed = 0;
@@ -177,19 +177,19 @@ int t_finish()
 
 int t_run(test_fn fn, int print)
 {
-	print_dst_t printfn   = {0};
-	wprint_dst_t wprintfn = {0};
+	dst_t dst   = {0};
+	wdst_t wdst = {0};
 
 	if (print == 0) {
-		printfn	 = t_set_print(PRINT_DST_NONE());
-		wprintfn = t_set_wprint(PRINT_DST_WNONE());
+		dst  = t_set_dst(DST_NONE());
+		wdst = t_set_wdst(WDST_NONE());
 	}
 
 	int ret = fn();
 
 	if (print == 0) {
-		t_set_print(printfn);
-		t_set_wprint(wprintfn);
+		t_set_dst(dst);
+		t_set_wdst(wdst);
 	}
 
 	return ret;
@@ -495,7 +495,7 @@ void t_expect_m(int passed, const char *file, const char *func, int line, const 
 	t_printf(" & " BYTE_TO_BIN_PATTERN "\033[0m\n", BYTE_TO_BIN(mask));
 }
 
-static int print_line(int passed, const char *h, const char *str, size_t ln, size_t col, size_t line_start, size_t line_end, int *h_len)
+static int print_line(int passed, const char *h, const char *str, size_t ln, size_t col, size_t line_start, size_t line_end, size_t *h_len)
 {
 	print_header(passed, NULL, NULL, 0);
 
@@ -557,15 +557,16 @@ static void print_str(int passed, const char *file, const char *func, int line, 
 	print_header(passed, file, func, line);
 	t_printf("\033[0m\n");
 
-	int h_len;
+	size_t h_len;
 	int exp_app = print_line(passed, "exp", exp_str, ln, col, line_start, exp_line_end == 0 ? exp_len : exp_line_end, &h_len);
 	int act_app = print_line(passed, "act", act_str, ln, col, line_start, act_line_end == 0 ? act_len : act_line_end, &h_len);
 
 	print_header(passed, NULL, NULL, 0);
-	t_printf("%*s^\033[0m\n", h_len + MIN(act_app, exp_app) + col, "");
+	t_printf("%*s^\033[0m\n", (int)h_len + MIN(act_app, exp_app) + col, "");
 }
 
-static int print_wline(int passed, const char *h, const wchar_t *str, size_t ln, size_t col, size_t line_start, size_t line_end, int *h_len)
+static int print_wline(int passed, const char *h, const wchar_t *str, size_t ln, size_t col, size_t line_start, size_t line_end,
+		       size_t *h_len)
 {
 	print_header(passed, NULL, NULL, 0);
 
@@ -629,12 +630,12 @@ static void print_wstr(int passed, const char *file, const char *func, int line,
 	print_header(passed, file, func, line);
 	t_printf("\033[0m\n");
 
-	int h_len;
+	size_t h_len;
 	int exp_app = print_wline(passed, "exp", exp_str, ln, col, line_start, exp_line_end == 0 ? exp_len : exp_line_end, &h_len);
 	int act_app = print_wline(passed, "act", act_str, ln, col, line_start, act_line_end == 0 ? act_len : act_line_end, &h_len);
 
 	print_header(passed, NULL, NULL, 0);
-	t_printf("%*s^\033[0m\n", h_len + MIN(act_app, exp_app) + col, "");
+	t_printf("%*s^\033[0m\n", (int)h_len + MIN(act_app, exp_app) + col, "");
 }
 
 void t_expect_str(int passed, const char *file, const char *func, int line, const char *act, const char *exp)
