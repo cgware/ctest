@@ -25,7 +25,7 @@ typedef struct tdata_s {
 	mem_stats_t mem_stats;
 } tdata_t;
 
-extern tdata_t t_get_data();
+extern tdata_t t_get_data(void);
 extern void t_set_data(tdata_t data);
 
 #define CW "\033[0m"
@@ -61,7 +61,7 @@ TEST(t_init_finish)
 	END;
 }
 
-static int empty_test()
+static int empty_test(void)
 {
 	return 1;
 }
@@ -487,7 +487,7 @@ TEST(t_expect_m)
 	tmp.dst	     = DST_BUF(buf);
 
 	t_set_data(tmp);
-	t_expect_m(0, NULL, NULL, 0, NULL, 0, NULL, 0, "==", 0, 0, 1);
+	t_expect_m(0, NULL, NULL, 0, NULL, 0, NULL, 0, 0, "==", 0, 1);
 	t_set_data(data);
 	EXPECT_STR(buf, "│ " CR "(null) == (null) (0 == 1) & 00000000" CW "\n");
 
@@ -1123,7 +1123,7 @@ TEST(ctest)
 	SEND;
 }
 
-int main()
+int main(void)
 {
 	c_print_init();
 	t_init();

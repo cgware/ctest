@@ -6,10 +6,10 @@
 #include "wdst.h"
 #include "wprint.h"
 
-void t_init();
-int t_finish();
+void t_init(void);
+int t_finish(void);
 
-typedef int (*test_fn)();
+typedef int (*test_fn)(void);
 int t_run(test_fn fn, int print);
 
 typedef int (*setup_fn)(void *priv);
@@ -22,12 +22,12 @@ void t_teardown(teardown_fn teardown);
 dst_t t_set_dst(dst_t dst);
 wdst_t t_set_wdst(wdst_t dst);
 
-void *t_get_priv();
+void *t_get_priv(void);
 
-void t_start();
+void t_start(void);
 int t_end(int passed, const char *file, const char *func, int line);
 
-void t_cstart();
+void t_cstart(void);
 int t_cend(int passed, const char *func);
 
 void t_sstart(const char *func);
@@ -45,7 +45,7 @@ void t_expect_ch(int passed, const char *file, const char *func, int line, const
 void t_expect_g(int passed, const char *file, const char *func, int line, const char *act, size_t act_size, const char *exp,
 		size_t exp_size, const char *cond, ...);
 void t_expect_m(int passed, const char *file, const char *func, int line, const char *act, size_t act_size, const char *exp,
-		size_t exp_size, const char *cond, unsigned char mask, ...);
+		size_t exp_size, unsigned char mask, const char *cond, ...);
 
 void t_expect_str(int passed, const char *file, const char *func, int line, const char *act, const char *exp);
 void t_expect_strn(int passed, const char *file, const char *func, int line, const char *act, const char *exp, size_t len);
@@ -61,11 +61,11 @@ void t_expect_fstr_start(const char *exp, size_t len);
 int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 
 // Declare subtest
-#define STEST(_name)	   int test_##_name()
+#define STEST(_name)	   int test_##_name(void)
 #define STESTP(_name, ...) int test_##_name(__VA_ARGS__)
 
 // Declare test
-#define TEST(_name)	  static inline int test_##_name()
+#define TEST(_name)	  static inline int test_##_name(void)
 #define TESTP(_name, ...) static inline int test_##_name(__VA_ARGS__)
 
 // Test start
@@ -129,7 +129,7 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 #define EXPECT_EQM(_actual, _expected, _mask)                                                                                              \
 	if (((_actual) ^ (_expected)) & (_mask)) {                                                                                         \
 		t_expect_m(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), "==", _mask,                                          \
+			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), _mask, "==",                                          \
 			   _actual, _expected);                                                                                            \
 		_passed = 0;                                                                                                               \
 	}
@@ -153,7 +153,7 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 #define EXPECT_NEM(_actual, _expected, _mask)                                                                                              \
 	if (!(((_actual) ^ (_expected)) & (_mask))) {                                                                                      \
 		t_expect_m(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), "!=", _mask,                                          \
+			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), _mask, "!=",                                          \
 			   _actual, _expected);                                                                                            \
 		_passed = 0;                                                                                                               \
 	}

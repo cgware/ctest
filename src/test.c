@@ -48,7 +48,7 @@ typedef struct tdata_s {
 
 static tdata_t s_data;
 
-tdata_t t_get_data()
+tdata_t t_get_data(void)
 {
 	return s_data;
 }
@@ -119,30 +119,30 @@ wdst_t t_set_wdst(wdst_t dst)
 	return cur;
 }
 
-void *t_get_priv()
+void *t_get_priv(void)
 {
 	return s_data.priv;
 }
 
-static inline int pur()
+static inline int pur(void)
 {
 	t_printf("└─");
 	return 2;
 }
 
-static inline int pv()
+static inline int pv(void)
 {
 	t_printf("│ ");
 	return 2;
 }
 
-static inline int pvr()
+static inline int pvr(void)
 {
 	t_printf("├─");
 	return 2;
 }
 
-void t_init()
+void t_init(void)
 {
 	s_data.dst  = DST_STD();
 	s_data.wdst = WDST_STD();
@@ -159,7 +159,7 @@ void t_init()
 	mem_stats_set(&s_data.mem_stats);
 }
 
-int t_finish()
+int t_finish(void)
 {
 	if (s_data.failed == 0) {
 		t_printf("\033[0;32mPASS %llu %s\033[0m\n", s_data.passed, s_data.passed == 1 ? "TEST" : "TESTS");
@@ -195,7 +195,7 @@ int t_run(test_fn fn, int print)
 	return ret;
 }
 
-void t_start()
+void t_start(void)
 {
 	s_data.mem = s_data.mem_stats.mem;
 
@@ -240,7 +240,7 @@ int t_end(int passed, const char *file, const char *func, int line)
 	return 0;
 }
 
-void t_cstart()
+void t_cstart(void)
 {
 }
 
@@ -367,11 +367,10 @@ int t_wstrncmp(const wchar_t *act, const wchar_t *exp, size_t len)
 static void print_header(int passed, const char *file, const char *func, int line)
 {
 	if (passed && func) {
-		int len = 0;
 		for (int i = 0; i < s_data.depth; i++) {
-			len += pv();
+			pv();
 		}
-		len += pvr();
+		pvr();
 		t_printf("\033[0;31mFAIL %s\033[0m\n", func + sizeof(TEST_PREFIX) - 1);
 	}
 
@@ -485,10 +484,10 @@ void t_expect_g(int passed, const char *file, const char *func, int line, const 
 }
 
 void t_expect_m(int passed, const char *file, const char *func, int line, const char *act, size_t act_size, const char *exp,
-		size_t exp_size, const char *cond, unsigned char mask, ...)
+		size_t exp_size, unsigned char mask, const char *cond, ...)
 {
 	va_list args;
-	va_start(args, mask);
+	va_start(args, cond);
 	print_values(passed, file, func, line, act, act_size, exp, exp_size, cond, args);
 	va_end(args);
 
