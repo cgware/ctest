@@ -92,7 +92,7 @@ TEST(t_priv)
 
 	int a = 0;
 	t_set_priv(&a);
-	EXPECT_EQ(t_get_priv(), &a);
+	EXPECT_PTR(t_get_priv(), &a);
 
 	t_set_data(data);
 
@@ -490,6 +490,24 @@ TEST(t_expect_m)
 	t_expect_m(0, NULL, NULL, 0, NULL, 0, NULL, 0, 0, "==", 0, 1);
 	t_set_data(data);
 	EXPECT_STR(buf, "│ " CR "(null) == (null) (0 == 1) & 00000000" CW "\n");
+
+	END;
+}
+
+TEST(t_expect_p)
+{
+	START;
+
+	char buf[1024] = {0};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.dst	     = DST_BUF(buf);
+
+	t_set_data(tmp);
+	t_expect_p(0, NULL, NULL, 0, NULL, NULL, "==", (void *)1, NULL);
+	t_set_data(data);
+	EXPECT_STR(buf, "│ " CR "(null) == (null) (0000000000000001 == 0000000000000000)" CW "\n");
 
 	END;
 }
@@ -1077,7 +1095,7 @@ TEST(t_expect_fstr)
 	free(tmp.buf);
 
 	t_set_data(data);
-	EXPECT_EQ(res, 1)
+	EXPECT_EQ(res, 1);
 	EXPECT_STR(buf,
 		   "│ " CR CW "\n"
 		   "│ " CR "exp:0: aa" CW "\n"
@@ -1093,11 +1111,31 @@ TEST(expect)
 	RUN(t_expect_ch);
 	RUN(t_expect_g);
 	RUN(t_expect_m);
+	RUN(t_expect_p);
 	RUN(t_expect_str);
 	RUN(t_expect_wstr);
 	RUN(t_expect_fail);
 	RUN(t_expect_fstr);
 	SEND;
+}
+
+typedef struct wanrn_s {
+	int usused;
+} want_t;
+
+static want_t *warn_fn()
+{
+	return NULL;
+}
+
+TEST(warnings)
+{
+	START;
+
+	EXPECT_EQ(1, 1);
+	EXPECT_NULL(warn_fn());
+
+	END;
 }
 
 TEST(ctest)
@@ -1119,6 +1157,7 @@ TEST(ctest)
 	RUN(t_finish);
 	RUN(check);
 	RUN(expect);
+	RUN(warnings);
 
 	SEND;
 }

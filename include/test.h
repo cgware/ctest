@@ -46,6 +46,8 @@ void t_expect_g(int passed, const char *file, const char *func, int line, const 
 		size_t exp_size, const char *cond, ...);
 void t_expect_m(int passed, const char *file, const char *func, int line, const char *act, size_t act_size, const char *exp,
 		size_t exp_size, unsigned char mask, const char *cond, ...);
+void t_expect_p(int passed, const char *file, const char *func, int line, const char *act, const char *exp, const char *cond,
+		const void *act_ptr, const void *exp_ptr);
 
 void t_expect_str(int passed, const char *file, const char *func, int line, const char *act, const char *exp);
 void t_expect_strn(int passed, const char *file, const char *func, int line, const char *act, const char *exp, size_t len);
@@ -117,23 +119,78 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 		_passed = 0;                                                                                                               \
 	}
 
-// clang-format off
-#define EXPECT_EQ(_actual, _expected)                                                                                                      \
-	if ((_actual) != (_expected)) {                                                                                                    \
-		t_expect_g(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), "==",                                                 \
-			   _actual, _expected);                                                                                            \
-		_passed = 0;                                                                                                               \
-	}
+#define T_EXPECT_G(_actual, _expected, _cond, _failed)                                                                                     \
+	do {                                                                                                                               \
+		__extension__ __typeof__(1 ? (_actual) : (_actual)) _t_actual	    = (_actual);                                           \
+		__extension__ __typeof__(1 ? (_expected) : (_expected)) _t_expected = (_expected);                                         \
+		if (_failed) {                                                                                                             \
+			t_expect_g(_passed,                                                                                                \
+				   __FILE__,                                                                                               \
+				   __func__,                                                                                               \
+				   __LINE__,                                                                                               \
+				   #_actual,                                                                                               \
+				   sizeof(_t_actual),                                                                                      \
+				   #_expected,                                                                                             \
+				   sizeof(_t_expected),                                                                                    \
+				   _cond,                                                                                                  \
+				   _t_actual,                                                                                              \
+				   _t_expected);                                                                                           \
+			_passed = 0;                                                                                                       \
+		}                                                                                                                          \
+	} while (0)
 
-#define EXPECT_EQM(_actual, _expected, _mask)                                                                                              \
-	if (((_actual) ^ (_expected)) & (_mask)) {                                                                                         \
-		t_expect_m(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), _mask, "==",                                          \
-			   _actual, _expected);                                                                                            \
-		_passed = 0;                                                                                                               \
-	}
-// clang-format on
+#define T_EXPECT_M(_actual, _expected, _mask, _cond, _failed)                                                                              \
+	do {                                                                                                                               \
+		__extension__ __typeof__(1 ? (_actual) : (_actual)) _t_actual	    = (_actual);                                           \
+		__extension__ __typeof__(1 ? (_expected) : (_expected)) _t_expected = (_expected);                                         \
+		__extension__ __typeof__(1 ? (_mask) : (_mask)) _t_mask		    = (_mask);                                             \
+		if (_failed) {                                                                                                             \
+			t_expect_m(_passed,                                                                                                \
+				   __FILE__,                                                                                               \
+				   __func__,                                                                                               \
+				   __LINE__,                                                                                               \
+				   #_actual,                                                                                               \
+				   sizeof(_t_actual),                                                                                      \
+				   #_expected,                                                                                             \
+				   sizeof(_t_expected),                                                                                    \
+				   _t_mask,                                                                                                \
+				   _cond,                                                                                                  \
+				   _t_actual,                                                                                              \
+				   _t_expected);                                                                                           \
+			_passed = 0;                                                                                                       \
+		}                                                                                                                          \
+	} while (0)
+
+#define EXPECT_PTR(_actual, _expected)                                                                                                     \
+	do {                                                                                                                               \
+		const void *_t_actual	= (_actual);                                                                                       \
+		const void *_t_expected = (_expected);                                                                                     \
+		if (_t_actual != _t_expected) {                                                                                            \
+			t_expect_p(_passed, __FILE__, __func__, __LINE__, #_actual, #_expected, "==", _t_actual, _t_expected);             \
+			_passed = 0;                                                                                                       \
+		}                                                                                                                          \
+	} while (0)
+
+#define EXPECT_PTR_NE(_actual, _expected)                                                                                                  \
+	do {                                                                                                                               \
+		const void *_t_actual	= (_actual);                                                                                       \
+		const void *_t_expected = (_expected);                                                                                     \
+		if (_t_actual == _t_expected) {                                                                                            \
+			t_expect_p(_passed, __FILE__, __func__, __LINE__, #_actual, #_expected, "!=", _t_actual, _t_expected);             \
+			_passed = 0;                                                                                                       \
+		}                                                                                                                          \
+	} while (0)
+
+#define EXPECT_EQ(_actual, _expected)	      T_EXPECT_G(_actual, _expected, "==", _t_actual != _t_expected)
+#define EXPECT_EQM(_actual, _expected, _mask) T_EXPECT_M(_actual, _expected, _mask, "==", ((_t_actual) ^ (_t_expected)) & (_t_mask))
+#define EXPECT_NE(_actual, _expected)	      T_EXPECT_G(_actual, _expected, "!=", _t_actual == _t_expected)
+#define EXPECT_NEM(_actual, _expected, _mask) T_EXPECT_M(_actual, _expected, _mask, "!=", !(((_t_actual) ^ (_t_expected)) & (_t_mask)))
+#define EXPECT_NULL(_actual)		      EXPECT_PTR(_actual, NULL)
+#define EXPECT_NOT_NULL(_actual)	      EXPECT_PTR_NE(_actual, NULL)
+#define EXPECT_GT(_actual, _expected)	      T_EXPECT_G(_actual, _expected, "> ", _t_actual <= _t_expected)
+#define EXPECT_GE(_actual, _expected)	      T_EXPECT_G(_actual, _expected, ">=", _t_actual < _t_expected)
+#define EXPECT_LT(_actual, _expected)	      T_EXPECT_G(_actual, _expected, "< ", _t_actual >= _t_expected)
+#define EXPECT_LE(_actual, _expected)	      T_EXPECT_G(_actual, _expected, "<=", _t_actual > _t_expected)
 
 #define EXPECT_EQB(_actual, _expected)                                                                                                     \
 	if ((_actual) != (_expected)) {                                                                                                    \
@@ -141,63 +198,11 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 		_passed = 0;                                                                                                               \
 	}
 
-// clang-format off
-#define EXPECT_NE(_actual, _expected)                                                                                                      \
-	if ((_actual) == (_expected)) {                                                                                                    \
-		t_expect_g(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), "!=",                                                 \
-			   _actual, _expected);                                                                                            \
-		_passed = 0;                                                                                                               \
-	}
-
-#define EXPECT_NEM(_actual, _expected, _mask)                                                                                              \
-	if (!(((_actual) ^ (_expected)) & (_mask))) {                                                                                      \
-		t_expect_m(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), _mask, "!=",                                          \
-			   _actual, _expected);                                                                                            \
-		_passed = 0;                                                                                                               \
-	}
-// clang-format on
-
 #define EXPECT_NEB(_actual, _expected)                                                                                                     \
 	if ((_actual) == (_expected)) {                                                                                                    \
 		t_expect_g(_passed, __FILE__, __func__, __LINE__, #_actual, 0, #_expected, 0, "!=", _actual, _expected);                   \
 		_passed = 0;                                                                                                               \
 	}
-
-// clang-format off
-#define EXPECT_GT(_actual, _expected)                                                                                                      \
-	if ((_actual) <= (_expected)) {                                                                                                    \
-		t_expect_g(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), "> ",                                                 \
-			   _actual, _expected);                                                                                            \
-		_passed = 0;                                                                                                               \
-	}
-
-#define EXPECT_GE(_actual, _expected)                                                                                                      \
-	if ((_actual) < (_expected)) {                                                                                                     \
-		t_expect_g(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual, sizeof(_actual), #_expected, sizeof(_expected), ">=",                                                 \
-			   _actual, _expected);                                                                                            \
-		_passed = 0;                                                                                                               \
-	}
-
-#define EXPECT_LT(_actual, _expected)                                                                                                      \
-	if ((_actual) >= (_expected)) {                                                                                                    \
-		t_expect_g(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual,  sizeof(_actual), #_expected, sizeof(_expected), "< ",                                                \
-			   _actual, _expected);                                                                                            \
-		_passed = 0;                                                                                                               \
-	}
-
-#define EXPECT_LE(_actual, _expected)                                                                                                      \
-	if ((_actual) > (_expected)) {                                                                                                     \
-		t_expect_g(_passed, __FILE__, __func__, __LINE__,                                                                          \
-			   #_actual, sizeof(_actual), #_expected,  sizeof(_expected), "<=",                                                \
-			   _actual, _expected);                                                                                            \
-		_passed = 0;                                                                                                               \
-	}
-// clang-format on
 
 #define EXPECT_STR(_actual, _expected)                                                                                                     \
 	if (t_strcmp(_actual, _expected)) {                                                                                                \

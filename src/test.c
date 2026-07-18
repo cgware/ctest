@@ -3,6 +3,7 @@
 #include "mem_stats.h"
 #include "platform.h"
 
+#include <inttypes.h>
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,6 +14,7 @@
 #endif
 
 #define BYTE_TO_BIN_PATTERN "%c%c%c%c%c%c%c%c"
+#define PTR_HEX_WIDTH	    16
 
 #define TEST_PREFIX "test_"
 
@@ -492,6 +494,21 @@ void t_expect_m(int passed, const char *file, const char *func, int line, const 
 	va_end(args);
 
 	t_printf(" & " BYTE_TO_BIN_PATTERN "\033[0m\n", BYTE_TO_BIN(mask));
+}
+
+void t_expect_p(int passed, const char *file, const char *func, int line, const char *act, const char *exp, const char *cond,
+		const void *act_ptr, const void *exp_ptr)
+{
+	print_header(passed, file, func, line);
+	t_printf("%s %s %s (%0*" PRIXPTR " %s %0*" PRIXPTR ")\033[0m\n",
+		 act,
+		 cond,
+		 exp,
+		 PTR_HEX_WIDTH,
+		 (uintptr_t)act_ptr,
+		 cond,
+		 PTR_HEX_WIDTH,
+		 (uintptr_t)exp_ptr);
 }
 
 static int print_line(int passed, const char *h, const char *str, size_t ln, size_t col, size_t line_start, size_t line_end, size_t *h_len)
