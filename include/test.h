@@ -121,20 +121,22 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 
 #define T_EXPECT_G(_actual, _expected, _cond, _failed)                                                                                     \
 	do {                                                                                                                               \
-		__extension__ __typeof__(1 ? (_actual) : (_actual)) _t_actual	    = (_actual);                                           \
-		__extension__ __typeof__(1 ? (_expected) : (_expected)) _t_expected = (_expected);                                         \
+		__extension__ __typeof__(1 ? (_actual) : (_actual)) _t_actual_orig	    = (_actual);                                   \
+		__extension__ __typeof__(1 ? (_expected) : (_expected)) _t_expected_orig    = (_expected);                                 \
+		__extension__ __typeof__(1 ? _t_actual_orig : _t_expected_orig) _t_actual   = _t_actual_orig;                              \
+		__extension__ __typeof__(1 ? _t_actual_orig : _t_expected_orig) _t_expected = _t_expected_orig;                            \
 		if (_failed) {                                                                                                             \
 			t_expect_g(_passed,                                                                                                \
 				   __FILE__,                                                                                               \
 				   __func__,                                                                                               \
 				   __LINE__,                                                                                               \
 				   #_actual,                                                                                               \
-				   sizeof(_t_actual),                                                                                      \
+				   sizeof(_t_actual_orig),                                                                                 \
 				   #_expected,                                                                                             \
-				   sizeof(_t_expected),                                                                                    \
+				   sizeof(_t_expected_orig),                                                                               \
 				   _cond,                                                                                                  \
-				   _t_actual,                                                                                              \
-				   _t_expected);                                                                                           \
+				   _t_actual_orig,                                                                                         \
+				   _t_expected_orig);                                                                                      \
 			_passed = 0;                                                                                                       \
 		}                                                                                                                          \
 	} while (0)
