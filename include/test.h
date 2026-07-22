@@ -6,11 +6,14 @@
 #include "wdst.h"
 #include "wprint.h"
 
-void t_init(void);
+int t_init(int argc, char **argv);
 int t_finish(void);
 
 typedef int (*test_fn)(void);
 int t_run(test_fn fn, int print);
+int t_run_named(test_fn fn, const char *name, int print);
+int t_enter(const char *name);
+void t_leave(int state);
 
 typedef int (*setup_fn)(void *priv);
 typedef int (*teardown_fn)(void *priv);
@@ -96,19 +99,21 @@ int t_expect_fstr_end(int passed, const char *file, const char *func, int line);
 	t_sstart(__func__)
 
 // Run test
-#define RUN(_fn)                                                                                                                           \
-	if (test_##_fn()) {                                                                                                                \
-		_sfailed++;                                                                                                                \
-	} else {                                                                                                                           \
-		_spassed++;                                                                                                                \
-	}
+#define T_RUN(_fn, _call)                                                                                                                  \
+	do {                                                                                                                               \
+		int _t_state = t_enter(#_fn);                                                                                              \
+		int _t_ret   = _t_state >= 0 ? (_call) : -1;                                                                               \
+		t_leave(_t_state);                                                                                                         \
+		if (_t_ret > 0) {                                                                                                          \
+			_sfailed++;                                                                                                        \
+		} else if (_t_ret == 0) {                                                                                                  \
+			_spassed++;                                                                                                        \
+		}                                                                                                                          \
+	} while (0)
 
-#define RUNP(_fn, ...)                                                                                                                     \
-	if (test_##_fn(__VA_ARGS__)) {                                                                                                     \
-		_sfailed++;                                                                                                                \
-	} else {                                                                                                                           \
-		_spassed++;                                                                                                                \
-	}
+#define RUN(_fn) T_RUN(_fn, test_##_fn())
+
+#define RUNP(_fn, ...) T_RUN(_fn, test_##_fn(__VA_ARGS__))
 
 // Subtests end
 #define SEND return t_send(_spassed, _sfailed)

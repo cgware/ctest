@@ -46,6 +46,10 @@ typedef struct tdata_s {
 	size_t exp_len;
 	size_t mem;
 	mem_stats_t mem_stats;
+	int filter_argc;
+	char **filter_argv;
+	char *filter_matched;
+	int filter_run_all;
 } tdata_t;
 
 static tdata_t s_data;
@@ -144,8 +148,63 @@ static inline int pvr(void)
 	return 2;
 }
 
-void t_init(void)
+static int t_arg_eq(const char *arg, const char *str)
 {
+	if (arg == NULL || str == NULL) {
+		return 0;
+	}
+
+	while (*arg && *str) {
+		if (*arg++ != *str++) {
+			return 0;
+		}
+	}
+
+	return *arg == *str;
+}
+
+static void t_filter(int argc, char **argv)
+{
+	if (s_data.filter_matched) {
+		free(s_data.filter_matched);
+	}
+
+	s_data.filter_argc    = argc;
+	s_data.filter_argv    = argv;
+	s_data.filter_matched = NULL;
+	s_data.filter_run_all = 0;
+
+	if (argc > 0) {
+		s_data.filter_matched = calloc((size_t)argc, sizeof(*s_data.filter_matched));
+	}
+}
+
+static dst_t t_help_dst(void)
+{
+	return s_data.dst.putv ? s_data.dst : DST_STD();
+}
+
+int t_init(int argc, char **argv)
+{
+	for (int i = 1; i < argc; i++) {
+		if (t_arg_eq(argv[i], "-h") || t_arg_eq(argv[i], "--help")) {
+			const char *program = argc > 0 && argv[0] ? argv[0] : "test";
+
+			dputf(t_help_dst(),
+			      "Usage: %s [filter...]\n"
+			      "\n"
+			      "Options:\n"
+			      "  -h, --help  Print this help message.\n"
+			      "\n"
+			      "Filters:\n"
+			      "  Each filter selects tests or suites by name prefix.\n"
+			      "  Selecting a suite runs all tests under that suite.\n",
+			      program);
+
+			return 1;
+		}
+	}
+
 	s_data.dst  = DST_STD();
 	s_data.wdst = WDST_STD();
 
@@ -159,10 +218,62 @@ void t_init(void)
 	s_data.buf = malloc(s_data.buf_size);
 
 	mem_stats_set(&s_data.mem_stats);
+
+	if (argc > 1) {
+		t_filter(argc - 1, argv + 1);
+	} else if (argc > 0) {
+		t_filter(0, NULL);
+	}
+
+	return 0;
+}
+
+static int t_starts_with(const char *str, const char *prefix)
+{
+	while (*prefix) {
+		if (*str++ != *prefix++) {
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static size_t t_strlen(const char *str)
+{
+	size_t len = 0;
+	while (*str++) {
+		len++;
+	}
+	return len;
+}
+
+static int t_filter_has_child(int index)
+{
+	const char *filter = s_data.filter_argv[index];
+	size_t len	   = t_strlen(filter);
+
+	for (int i = 0; i < s_data.filter_argc; i++) {
+		if (i == index) {
+			continue;
+		}
+
+		if (t_starts_with(s_data.filter_argv[i], filter) && s_data.filter_argv[i][len] == '_') {
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 int t_finish(void)
 {
+	for (int i = 0; i < s_data.filter_argc; i++) {
+		if (!s_data.filter_matched[i]) {
+			t_printf("\033[0;31mFAIL filter '%s' matched no tests\033[0m\n", s_data.filter_argv[i]);
+			s_data.failed++;
+		}
+	}
+
 	if (s_data.failed == 0) {
 		t_printf("\033[0;32mPASS %llu %s\033[0m\n", s_data.passed, s_data.passed == 1 ? "TEST" : "TESTS");
 	} else {
@@ -173,14 +284,72 @@ int t_finish(void)
 	}
 
 	free(s_data.buf);
+	t_filter(0, NULL);
 
 	return (int)s_data.failed;
 }
 
-int t_run(test_fn fn, int print)
+static int t_should_run(const char *name)
+{
+	if (s_data.filter_argc == 0 || name == NULL) {
+		return 1;
+	}
+
+	int run = s_data.filter_run_all;
+
+	for (int i = 0; i < s_data.filter_argc; i++) {
+		const char *filter = s_data.filter_argv[i];
+
+		if (t_starts_with(name, filter)) {
+			s_data.filter_matched[i] = 1;
+			if (!t_filter_has_child(i) || name[t_strlen(filter)] == '\0') {
+				run = 1;
+			}
+		}
+
+		if (t_starts_with(filter, name) && filter[t_strlen(name)] == '_') {
+			run = 1;
+		}
+	}
+
+	return run;
+}
+
+int t_enter(const char *name)
+{
+	if (!t_should_run(name)) {
+		return -1;
+	}
+
+	int filter_run_all = s_data.filter_run_all;
+	if (name != NULL) {
+		for (int i = 0; i < s_data.filter_argc; i++) {
+			if (t_starts_with(name, s_data.filter_argv[i]) && !t_filter_has_child(i)) {
+				s_data.filter_run_all = 1;
+				break;
+			}
+		}
+	}
+
+	return filter_run_all;
+}
+
+void t_leave(int state)
+{
+	if (state >= 0) {
+		s_data.filter_run_all = state;
+	}
+}
+
+int t_run_named(test_fn fn, const char *name, int print)
 {
 	dst_t dst   = {0};
 	wdst_t wdst = {0};
+
+	int state = t_enter(name);
+	if (state < 0) {
+		return -1;
+	}
 
 	if (print == 0) {
 		dst  = t_set_dst(DST_NONE());
@@ -189,12 +358,19 @@ int t_run(test_fn fn, int print)
 
 	int ret = fn();
 
+	t_leave(state);
+
 	if (print == 0) {
 		t_set_dst(dst);
 		t_set_wdst(wdst);
 	}
 
 	return ret;
+}
+
+int t_run(test_fn fn, int print)
+{
+	return t_run_named(fn, NULL, print);
 }
 
 void t_start(void)
@@ -294,15 +470,6 @@ int t_scan(const char *str, const char *fmt, ...)
 	const int ret = vsscanf(str, fmt, args);
 	va_end(args);
 	return ret;
-}
-
-static size_t t_strlen(const char *str)
-{
-	size_t len = 0;
-	while (*str++) {
-		len++;
-	}
-	return len;
 }
 
 int t_strcmp(const char *act, const char *exp)

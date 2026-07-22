@@ -23,6 +23,10 @@ typedef struct tdata_s {
 	size_t exp_len;
 	size_t mem;
 	mem_stats_t mem_stats;
+	int filter_argc;
+	char **filter_argv;
+	char *filter_matched;
+	int filter_run_all;
 } tdata_t;
 
 extern tdata_t t_get_data(void);
@@ -40,7 +44,7 @@ TEST(t_init_finish)
 
 	tdata_t data = t_get_data();
 
-	t_init();
+	t_init(0, NULL);
 
 	tdata_t tmp = {0};
 	tmp.dst	    = DST_BUF(buf);
@@ -50,13 +54,83 @@ TEST(t_init_finish)
 	t_set_data(data);
 	EXPECT_STR(buf, CG "PASS 0 TESTS" CW "\n");
 
-	t_init();
+	t_init(0, NULL);
 
 	tmp.failed = 1;
 	t_set_data(tmp);
 	EXPECT_EQ(t_finish(), 1);
 	t_set_data(data);
 	EXPECT_STR(buf, CR "FAIL 1/1 TEST" CW "\n");
+
+	END;
+}
+
+TEST(t_init_args)
+{
+	START;
+
+	tdata_t data = t_get_data();
+	tdata_t base = data;
+
+	base.filter_argc    = 0;
+	base.filter_argv    = NULL;
+	base.filter_matched = NULL;
+	base.filter_run_all = 0;
+
+	char *args[] = {"ctest", "missing"};
+
+	t_set_data(base);
+	EXPECT_EQ(t_init(2, args), 0);
+
+	tdata_t tmp = t_get_data();
+	EXPECT_EQ(tmp.filter_argc, 1);
+	EXPECT_PTR(tmp.filter_argv, args + 1);
+	EXPECT_NOT_NULL(tmp.filter_matched);
+
+	free(tmp.buf);
+	free(tmp.filter_matched);
+
+	char *null_args[] = {"ctest", NULL};
+
+	t_set_data(base);
+	EXPECT_EQ(t_init(2, null_args), 0);
+
+	tmp = t_get_data();
+	EXPECT_EQ(tmp.filter_argc, 1);
+	EXPECT_PTR(tmp.filter_argv, null_args + 1);
+	EXPECT_NOT_NULL(tmp.filter_matched);
+
+	free(tmp.buf);
+	free(tmp.filter_matched);
+	t_set_data(data);
+
+	END;
+}
+
+TEST(t_init_help)
+{
+	START;
+
+	char buf[512] = {0};
+	char *args[]  = {"ctest", "-h"};
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = {0};
+	tmp.dst	     = DST_BUF(buf);
+
+	t_set_data(tmp);
+	EXPECT_EQ(t_init(2, args), 1);
+	t_set_data(data);
+
+	EXPECT_STR(buf,
+		   "Usage: ctest [filter...]\n"
+		   "\n"
+		   "Options:\n"
+		   "  -h, --help  Print this help message.\n"
+		   "\n"
+		   "Filters:\n"
+		   "  Each filter selects tests or suites by name prefix.\n"
+		   "  Selecting a suite runs all tests under that suite.\n");
 
 	END;
 }
@@ -80,6 +154,234 @@ TEST(t_run)
 	t_set_data(data);
 	EXPECT_EQ(data.dst.putv, tmp.dst.putv);
 	EXPECT_EQ(data.wdst.wputv, tmp.wdst.wputv);
+
+	END;
+}
+
+static int t_filter_calls;
+static int t_filter_skips;
+
+static int test_t_filter_suite_count(void)
+{
+	START;
+
+	t_filter_calls++;
+
+	END;
+}
+
+static int test_t_filter_suite_skip(void)
+{
+	START;
+
+	t_filter_skips++;
+
+	END;
+}
+
+TEST(t_filter_suite)
+{
+	SSTART;
+	RUN(t_filter_suite_count);
+	RUN(t_filter_suite_skip);
+	SEND;
+}
+
+static void t_test_filter(int argc, char **argv)
+{
+	tdata_t data = t_get_data();
+
+	if (data.filter_matched) {
+		free(data.filter_matched);
+	}
+
+	data.filter_argc    = argc;
+	data.filter_argv    = argv;
+	data.filter_matched = NULL;
+	data.filter_run_all = 0;
+
+	if (argc > 0) {
+		data.filter_matched = calloc((size_t)argc, sizeof(*data.filter_matched));
+	}
+
+	t_set_data(data);
+}
+
+TEST(t_run_filter)
+{
+	START;
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = data;
+
+	char buf[1024] = {0};
+	char *args[]   = {"ctest", "t_filter_suite_count"};
+
+	tmp.dst		   = DST_BUF(buf);
+	tmp.passed	   = 0;
+	tmp.failed	   = 0;
+	tmp.depth	   = 0;
+	tmp.filter_argc	   = 0;
+	tmp.filter_argv	   = NULL;
+	tmp.filter_matched = NULL;
+
+	t_filter_calls = 0;
+	t_filter_skips = 0;
+	t_set_data(tmp);
+	t_test_filter(1, args + 1);
+
+	EXPECT_EQ(t_run_named(test_t_filter_suite_count, "t_filter_suite_count", 1), 0);
+	EXPECT_EQ(t_filter_calls, 1);
+	EXPECT_EQ(t_run_named(test_t_filter_suite_count, "empty", 1), -1);
+	EXPECT_EQ(t_filter_calls, 1);
+	EXPECT_EQ(t_filter_skips, 0);
+	EXPECT_STR(buf, "├─" CG "PASS t_filter_suite_count" CW "\n");
+
+	t_test_filter(0, NULL);
+	t_set_data(data);
+
+	END;
+}
+
+TEST(t_run_filter_suite)
+{
+	START;
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = data;
+
+	char buf[1024] = {0};
+	char *args[]   = {"ctest", "t_filter_suite"};
+
+	tmp.dst		   = DST_BUF(buf);
+	tmp.passed	   = 0;
+	tmp.failed	   = 0;
+	tmp.depth	   = 0;
+	tmp.filter_argc	   = 0;
+	tmp.filter_argv	   = NULL;
+	tmp.filter_matched = NULL;
+	tmp.filter_run_all = 0;
+
+	t_filter_calls = 0;
+	t_filter_skips = 0;
+	t_set_data(tmp);
+	t_test_filter(1, args + 1);
+
+	EXPECT_EQ(t_run_named(test_t_filter_suite, "t_filter_suite", 1), 0);
+	EXPECT_EQ(t_filter_calls, 1);
+	EXPECT_EQ(t_filter_skips, 1);
+	EXPECT_STR(buf,
+		   "├─t_filter_suite\n"
+		   "│ ├─" CG "PASS t_filter_suite_count" CW "\n"
+		   "│ ├─" CG "PASS t_filter_suite_skip" CW "\n"
+		   "│ └─" CG "PASS 2 TESTS" CW "\n");
+
+	t_test_filter(0, NULL);
+	t_set_data(data);
+
+	END;
+}
+
+TEST(t_run_filter_suite_child)
+{
+	START;
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = data;
+
+	char buf[1024] = {0};
+	char *args[]   = {"ctest", "t_filter_suite", "t_filter_suite_count"};
+
+	tmp.dst		   = DST_BUF(buf);
+	tmp.passed	   = 0;
+	tmp.failed	   = 0;
+	tmp.depth	   = 0;
+	tmp.filter_argc	   = 0;
+	tmp.filter_argv	   = NULL;
+	tmp.filter_matched = NULL;
+	tmp.filter_run_all = 0;
+
+	t_filter_calls = 0;
+	t_filter_skips = 0;
+	t_set_data(tmp);
+	t_test_filter(2, args + 1);
+
+	EXPECT_EQ(t_run_named(test_t_filter_suite, "t_filter_suite", 1), 0);
+	EXPECT_EQ(t_filter_calls, 1);
+	EXPECT_EQ(t_filter_skips, 0);
+	tmp = t_get_data();
+	EXPECT_EQ(tmp.filter_matched[0], 1);
+	EXPECT_EQ(tmp.filter_matched[1], 1);
+	EXPECT_STR(buf,
+		   "├─t_filter_suite\n"
+		   "│ ├─" CG "PASS t_filter_suite_count" CW "\n"
+		   "│ └─" CG "PASS 1 TEST" CW "\n");
+
+	t_test_filter(0, NULL);
+	t_set_data(data);
+
+	END;
+}
+
+TEST(t_run_filter_parent)
+{
+	START;
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = data;
+
+	char *args[] = {"ctest", "parent_child"};
+
+	tmp.passed	   = 0;
+	tmp.failed	   = 0;
+	tmp.depth	   = 0;
+	tmp.filter_argc	   = 0;
+	tmp.filter_argv	   = NULL;
+	tmp.filter_matched = NULL;
+	tmp.filter_run_all = 0;
+
+	t_filter_calls = 0;
+	t_set_data(tmp);
+	t_test_filter(1, args + 1);
+
+	EXPECT_EQ(t_run_named(test_t_filter_suite_count, "parent", 0), 0);
+	EXPECT_EQ(t_run_named(test_t_filter_suite_count, "other", 0), -1);
+	EXPECT_EQ(t_filter_calls, 1);
+	tmp = t_get_data();
+	EXPECT_EQ(tmp.filter_matched[0], 0);
+
+	t_test_filter(0, NULL);
+	t_set_data(data);
+
+	END;
+}
+
+TEST(t_filter_finish_unmatched)
+{
+	START;
+
+	tdata_t data = t_get_data();
+	tdata_t tmp  = data;
+
+	char buf[1024] = {0};
+	char *args[]   = {"ctest", "missing"};
+
+	tmp.dst		   = DST_BUF(buf);
+	tmp.passed	   = 0;
+	tmp.failed	   = 0;
+	tmp.depth	   = 0;
+	tmp.buf		   = malloc(tmp.buf_size);
+	tmp.filter_argc	   = 0;
+	tmp.filter_argv	   = NULL;
+	tmp.filter_matched = NULL;
+	tmp.filter_run_all = 0;
+
+	t_set_data(tmp);
+	t_test_filter(1, args + 1);
+	EXPECT_EQ(t_finish(), 1);
+	t_set_data(data);
+
+	EXPECT_STR(buf, CR "FAIL filter 'missing' matched no tests" CW "\n" CR "FAIL 1/1 TEST" CW "\n");
 
 	END;
 }
@@ -268,7 +570,7 @@ TEST(t_send)
 	END;
 }
 
-TEST(t_expect)
+TEST(t_expect_values)
 {
 	START;
 
@@ -309,8 +611,12 @@ TEST(t_finish)
 	tdata_t tdata = t_get_data();
 	tdata_t tmp   = tdata;
 
-	tmp.dst	 = DST_NONE();
-	tmp.wdst = WDST_NONE();
+	tmp.dst		   = DST_NONE();
+	tmp.wdst	   = WDST_NONE();
+	tmp.filter_argc	   = 0;
+	tmp.filter_argv	   = NULL;
+	tmp.filter_matched = NULL;
+	tmp.filter_run_all = 0;
 
 	tmp.failed = 1;
 	tmp.buf	   = malloc(tmp.buf_size);
@@ -327,7 +633,7 @@ TEST(t_finish)
 	END;
 }
 
-TEST(t_scan)
+TEST(t_check_scan)
 {
 	START;
 
@@ -339,7 +645,7 @@ TEST(t_scan)
 	END;
 }
 
-TEST(t_strcmp)
+TEST(t_check_strcmp)
 {
 	START;
 	EXPECT_EQ(t_strcmp(NULL, NULL), 0);
@@ -355,7 +661,7 @@ TEST(t_strcmp)
 	END;
 }
 
-TEST(t_strncmp)
+TEST(t_check_strncmp)
 {
 	START;
 	EXPECT_EQ(t_strncmp(NULL, NULL, 0), 0);
@@ -372,7 +678,7 @@ TEST(t_strncmp)
 	END;
 }
 
-TEST(t_wstrcmp)
+TEST(t_check_wstrcmp)
 {
 	START;
 	EXPECT_EQ(t_wstrcmp(NULL, NULL), 0);
@@ -388,7 +694,7 @@ TEST(t_wstrcmp)
 	END;
 }
 
-TEST(t_wstrncmp)
+TEST(t_check_wstrncmp)
 {
 	START;
 	EXPECT_EQ(t_wstrncmp(NULL, NULL, 0), 0);
@@ -405,14 +711,14 @@ TEST(t_wstrncmp)
 	END;
 }
 
-TEST(check)
+TEST(t_check)
 {
 	SSTART;
-	RUN(t_scan);
-	RUN(t_strcmp);
-	RUN(t_strncmp);
-	RUN(t_wstrcmp);
-	RUN(t_wstrncmp);
+	RUN(t_check_scan);
+	RUN(t_check_strcmp);
+	RUN(t_check_strncmp);
+	RUN(t_check_wstrcmp);
+	RUN(t_check_wstrncmp);
 	SEND;
 }
 
@@ -1105,7 +1411,7 @@ TEST(t_expect_fstr)
 	END;
 }
 
-TEST(expect)
+TEST(t_expect)
 {
 	SSTART;
 	RUN(t_expect_ch);
@@ -1128,7 +1434,7 @@ static want_t *warn_fn()
 	return NULL;
 }
 
-TEST(warnings)
+TEST(t_warnings)
 {
 	START;
 
@@ -1143,7 +1449,14 @@ TEST(ctest)
 	SSTART;
 
 	RUN(t_init_finish);
+	RUN(t_init_args);
+	RUN(t_init_help);
 	RUN(t_run);
+	RUN(t_run_filter);
+	RUN(t_run_filter_suite);
+	RUN(t_run_filter_suite_child);
+	RUN(t_run_filter_parent);
+	RUN(t_filter_finish_unmatched);
 	RUN(t_priv);
 	RUN(t_setup_teardown);
 	RUN(t_start_end);
@@ -1151,21 +1464,23 @@ TEST(ctest)
 	RUN(t_cstart_cend);
 	RUN(t_sstart);
 	RUN(t_send);
-	RUN(t_expect);
+	RUN(t_expect_values);
 	RUN(t_set_print);
 	RUN(t_send);
 	RUN(t_finish);
-	RUN(check);
-	RUN(expect);
-	RUN(warnings);
+	RUN(t_check);
+	RUN(t_expect);
+	RUN(t_warnings);
 
 	SEND;
 }
 
-int main(void)
+int main(int argc, char **argv)
 {
 	c_print_init();
-	t_init();
+	if (t_init(argc, argv)) {
+		return 0;
+	}
 	t_run(test_ctest, 1);
 	return t_finish();
 }
